@@ -1,6 +1,6 @@
 {
   "name": "@n1k1t/pipelain",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Powerful utility to build and execute type-safe AI pipelines with structured outputs and tool integration",
   "main": "lib/src/index.js",
   "types": "lib/src/index.d.ts",
