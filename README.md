@@ -153,13 +153,12 @@ Used to provide tools to the AI. These methods are available via `factory.tools`
 
 | Method | Description | Included Tools |
 | --- | --- | --- |
+| `all()` | Includes all available tools. | -|
 | `web()` | Tools for web interaction. | `search`, `fetch` |
 | `files('read')` | Read-only file system tools. | `read`, `grep`, `glob`, `ls` |
 | `files('read-write')` | Read and write file system tools. | `read`, `grep`, `glob`, `ls`, `mkdir`, `write`, `edit`, `rm` |
 | `commands(['npm', 'npx'])` | Package manager tools. | `npm`, `npx` |
-| `all()` | Includes all available tools. | All of the above |
 | `custom(tools)` | Includes custom tool implementations. | - |
-| `all()` | Includes all available tools. | All of the above |
 
 ### `factory.skills` (LlmSkillsFactory)
 Used to provide domain-specific instructions and workflows to the AI. These methods are available via `factory.skills` in pipeline steps.

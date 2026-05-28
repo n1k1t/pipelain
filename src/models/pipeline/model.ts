@@ -144,7 +144,7 @@ export class Pipeline<TConfiguration extends IPipelineConfiguration = any> {
   public schema: ZodType<TConfiguration['input']> = this.provided.schema;
   public parent?: Pipeline | PipelineStep = this.provided.parent;
 
-  constructor(private provided: Pick<Pipeline, 'context'> & {
+  constructor(protected provided: Pick<Pipeline, 'context'> & {
     title: string;
     schema: Pipeline['schema'];
 

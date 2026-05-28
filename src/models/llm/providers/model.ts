@@ -31,7 +31,7 @@ export abstract class LlmProvider<TOptions extends object = {}> {
     url?: string;
   } = this.provided.connection;
 
-  constructor(public model: string, private provided: Pick<LlmProvider<TOptions>, 'connection' | 'options'> & {
+  constructor(public model: string, protected provided: Pick<LlmProvider<TOptions>, 'connection' | 'options'> & {
     temperature?: number;
     limit?: number;
 

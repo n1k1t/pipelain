@@ -47,7 +47,7 @@ export class LlmToolCompiler<TSchema extends {
     TSchema['output']
   >;
 
-  constructor(public description: string, private provided: {
+  constructor(public description: string, protected provided: {
     executor?: LlmToolCompiler<TSchema>['TExecutor'];
     options?: TSchema['options'];
 

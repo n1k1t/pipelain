@@ -108,7 +108,7 @@ export class Project {
     },
   };
 
-  constructor(private provided: Pick<Project, 'sources'> & Partial<Pick<Project, 'cwd'>>) {}
+  constructor(protected provided: Pick<Project, 'sources'> & Partial<Pick<Project, 'cwd'>>) {}
 
   static async build(options?: Partial<Pick<Project, 'cwd'>>): Promise<Project> {
     const cwd = options?.cwd ?? process.cwd();

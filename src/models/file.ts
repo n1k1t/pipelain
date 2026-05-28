@@ -34,7 +34,7 @@ export class File {
 
   public options?: IFileOptions = this.provided.options;
 
-  constructor(private provided: Pick<File, 'cwd' | 'lang' | 'path' | 'content' | 'options'>) {}
+  constructor(protected provided: Pick<File, 'cwd' | 'lang' | 'path' | 'content' | 'options'>) {}
 
   public append(content: string): this {
     if (!content.length) {
