@@ -58,7 +58,7 @@ const schemas = (() => {
 export class Rg {
   private argv0: string | null = null;
 
-  constructor(private provided?: { cwd?: string }) {}
+  constructor(protected provided?: { cwd?: string }) {}
 
   public async exec(pattern: string, options?: {
     include?: string[];

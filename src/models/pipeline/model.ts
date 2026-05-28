@@ -12,7 +12,7 @@ import { Project } from '../project';
 export class PipelineCompiler<TConfiguration extends IPipelineConfiguration = any> {
   public TSchema!: TConfiguration['state'];
 
-  constructor(public title: string, private definition: {
+  constructor(public title: string, protected definition: {
     steps: TPipelineCompilerConfigurationStep[];
 
     description?: string;

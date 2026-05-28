@@ -89,7 +89,7 @@ export class PipelineLoopStepCompiler<
 > extends PipelineStepCompiler<TSchema> {
   private type: Extract<TPipelineStepType, 'loop'> = 'loop';
 
-  constructor(private definition: Partial<IDefinition<TConfiguration>>) {
+  constructor(protected definition: Partial<IDefinition<TConfiguration>>) {
     super();
   }
 

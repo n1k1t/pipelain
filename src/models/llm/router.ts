@@ -5,7 +5,7 @@ import * as providers from './providers';
 import env from '../../env';
 
 export class LlmRouter {
-  constructor(private configuration: {
+  constructor(protected configuration: {
     key: string;
 
     provider?: string;

@@ -22,7 +22,7 @@ type TContentKind<K extends TContentType> = {
 }[K];
 
 export class ContentFactory {
-  constructor(private project?: Project) {}
+  constructor(protected project?: Project) {}
 
   /** Creates `## Article` with nested content */
   public article(title: string, content: DataObject[]): kinds.ArticleContent {

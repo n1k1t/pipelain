@@ -22,7 +22,7 @@ export class PipelineSwarmStepCompiler<
 > extends PipelineStepCompiler<TSchema> {
   private type: Extract<TPipelineStepType, 'swarm'> = 'swarm';
 
-  constructor(private definition: Partial<IDefinition<TConfiguration>>) {
+  constructor(protected definition: Partial<IDefinition<TConfiguration>>) {
     super();
   }
 

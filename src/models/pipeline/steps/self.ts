@@ -18,7 +18,7 @@ export class PipelineSelfStepCompiler<
 > extends PipelineStepCompiler<TSchema> {
   private type: Extract<TPipelineStepType, 'self'> = 'self';
 
-  constructor(private definition: Partial<IDefinition<TConfiguration, TSchema>>) {
+  constructor(protected definition: Partial<IDefinition<TConfiguration, TSchema>>) {
     super();
   }
 

@@ -109,7 +109,7 @@ export class PipelineAiStepCompiler<
 > extends PipelineStepCompiler<TSchema> {
   private type: Extract<TPipelineStepType, 'ai'> = 'ai';
 
-  constructor(private definition: Partial<IDefinition<TConfiguration>>) {
+  constructor(protected definition: Partial<IDefinition<TConfiguration>>) {
     super();
   }
 

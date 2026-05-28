@@ -23,7 +23,7 @@ export class BashExecError extends Error {
 }
 
 export class Bash {
-  constructor(private provided?: {
+  constructor(protected provided?: {
     /** Command prefix like `npm` */
     argv0?: string;
 

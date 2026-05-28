@@ -10,7 +10,7 @@ import {
 } from './steps';
 
 export class PipelineFactory<TConfiguration extends IPipelineConfiguration = any> {
-  constructor(private pipeline: Pipeline<TConfiguration>) {}
+  constructor(protected pipeline: Pipeline<TConfiguration>) {}
 
   /** LLM tools factory */
   public get tools(): LlmToolsFactory {

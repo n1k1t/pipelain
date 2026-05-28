@@ -12,7 +12,7 @@ export class PipelineContext<TConfiguration extends IPipelineConfiguration = any
   public input: TConfiguration['input'] = this.defaults?.input ?? undefined;
   public state: TConfiguration['state'] = this.defaults?.state ?? {};
 
-  constructor(public project: Project, private defaults?: {
+  constructor(public project: Project, protected defaults?: {
     input?: TConfiguration['input'];
     state?: Partial<TConfiguration['state']>;
   }) {}
