@@ -1,35 +1,39 @@
-import type { PipelineSession } from '../session';
+import type { IPipelineSessionEventMeta, PipelineSession } from '../session';
 import type { TFunction } from '../../../../types';
 
 type TPipelineStdoutHooks = {
   [K in keyof PipelineSession['TEvents']]: TFunction<unknown, PipelineSession['TEvents'][K]>;
 };
 
+const checkIsFinalEventState = (state: IPipelineSessionEventMeta['state']) =>
+  state === 'DONE' || state === 'ERROR';
+
 export class PipelineStdout {
   private hooks: TPipelineStdoutHooks = {
     'warning': (event) => this.logger.info(event.message),
+
     'log': (event) => this.logger.info(
       `${event.pipeline.trace().reverse().map((entity) => entity.title).join(' - ')}:`,
       ...event.message,
     ),
 
-    'run': (event) => event.meta.state !== 'INIT' && this.logger.info(
+    'run': (event) => checkIsFinalEventState(event.meta.state) && this.logger.info(
       `${event.pipeline.trace().reverse().map((entity) => entity.title).join(' - ')}: [${event.meta.state}]`,
       `in ${event.meta.spent}ms`
     ),
 
-    'step:run': (event) => event.meta.state !== 'INIT' && this.logger.info(
+    'step:run': (event) => checkIsFinalEventState(event.meta.state) && this.logger.info(
       `${event.step.trace().reverse().map((entity) => entity.title).join(' - ')}: [${event.meta.state}]`,
       `in ${event.meta.spent}ms`
     ),
 
-    'step:llm:tool': (event) => event.meta.state !== 'INIT' && this.logger.info(
+    'step:llm:tool': (event) => checkIsFinalEventState(event.meta.state) && this.logger.info(
       `${event.step.trace().reverse().map((entity) => entity.title).join(' - ')}:`,
       `Tool [${event.name}] [${event.meta.state}] in ${event.meta.spent}ms`,
       `\n${event.message}`
     ),
 
-    'step:llm:reasoning': (event) => event.meta.state !== 'INIT' && this.logger.info(
+    'step:llm:reasoning': (event) => checkIsFinalEventState(event.meta.state) && this.logger.info(
       `${event.step.trace().reverse().map((entity) => entity.title).join(' - ')}:`,
       `Reasoning [${event.meta.state}] in ${event.meta.spent}ms`,
       `\n${event.message}`
