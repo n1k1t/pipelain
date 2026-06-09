@@ -2,7 +2,7 @@
   <h1>PipelAIn</h1>
   <p>Type-safe AI-powered execution pipelines</p>
 
-  <img src="https://raw.githubusercontent.com/n1k1t/pipelain/refs/heads/master/images/preview.png?raw=true" />
+  <img width="640px" src="https://raw.githubusercontent.com/n1k1t/pipelain/refs/heads/master/images/preview.png?raw=true" />
 
   <br />
   <br />
@@ -17,6 +17,7 @@ Powerful utility to build and execute type-safe AI pipelines with structured out
 - [Features](#features)
 - [Installation](#installation)
 - [First Steps](#first-steps)
+- [Add Skills](#add-skills)
 - [Simple Example](#simple-example)
 - [Environment Variables](#environment-variables)
 - [Pipeline Step Utilities](#pipeline-step-utilities)
@@ -63,6 +64,14 @@ To use the library, you need to provide an API key for the LLM provider. Create 
 
 ```env
 PIPELAIN_API_KEY=your_api_key_here
+```
+
+## Add Skills
+
+If you are using the [skills](https://www.npmjs.com/package/skills) package, you can add `n1k1t/pipelain` to your project using the following command:
+
+```bash
+npx skills add n1k1t/pipelain
 ```
 
 ## Simple Example
