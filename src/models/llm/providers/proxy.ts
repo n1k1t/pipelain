@@ -4,7 +4,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { SetPartialKeys } from '../../../../types';
 import { LlmProvider } from './model';
 
-export class LlmProxyProvider extends LlmProvider {
+export class LlmProxyProvider extends LlmProvider<object> {
   public name: string = 'proxy';
 
   public tag: LanguageModel = createOpenAI({
@@ -22,6 +22,13 @@ export class LlmProxyProvider extends LlmProvider {
 
       skills: [...this.skills],
       mcp: [...this.mcp],
+
+      ...(this.fallback && {
+        fallback: {
+          strategy: this.fallback.strategy,
+          providers: [...this.fallback.providers],
+        },
+      }),
     });
 
     return <this>clone;
@@ -31,6 +38,6 @@ export class LlmProxyProvider extends LlmProvider {
     model: string,
     parameters: SetPartialKeys<LlmProxyProvider['provided'], 'options'>
   ): LlmProxyProvider {
-    return new LlmProxyProvider(model, { ...parameters, options: {} });
+    return new LlmProxyProvider(model, { ...parameters, options: parameters.options ?? {} });
   }
 }

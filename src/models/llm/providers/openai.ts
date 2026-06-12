@@ -1,12 +1,10 @@
+import { createOpenAI, OpenAIChatLanguageModelOptions } from '@ai-sdk/openai';
 import { LanguageModel } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
 
 import { SetPartialKeys } from '../../../../types';
 import { LlmProvider } from './model';
 
-export class LlmOpenaiProvider extends LlmProvider<{
-  reasoningEffort?: 'low' | (string & {});
-}> {
+export class LlmOpenaiProvider extends LlmProvider<OpenAIChatLanguageModelOptions> {
   public name: string = 'openai';
 
   public tag: LanguageModel = createOpenAI({
@@ -24,6 +22,13 @@ export class LlmOpenaiProvider extends LlmProvider<{
 
       skills: [...this.skills],
       mcp: [...this.mcp],
+
+      ...(this.fallback && {
+        fallback: {
+          strategy: this.fallback.strategy,
+          providers: [...this.fallback.providers],
+        },
+      }),
     });
 
     return <this>clone;

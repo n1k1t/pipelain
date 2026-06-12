@@ -1,6 +1,7 @@
 import EventEmitter from 'events';
 
 import type { PipelineStep } from './steps';
+import type { LlmProvider } from '../llm';
 import type { Pipeline } from './model';
 
 export interface IPipelineSessionEventMeta {
@@ -10,11 +11,12 @@ export interface IPipelineSessionEventMeta {
 
 export interface IPipelineSessionEvents {
   'step:llm:tool': [{
+    step: PipelineStep;
+    meta: IPipelineSessionEventMeta;
+
     name: string;
     message: string;
 
-    step: PipelineStep;
-    meta: IPipelineSessionEventMeta;
   }];
 
   'step:llm:reasoning': [{
@@ -22,6 +24,15 @@ export interface IPipelineSessionEvents {
 
     step: PipelineStep;
     meta: IPipelineSessionEventMeta;
+  }];
+
+  'step:llm:fallback': [{
+    step: PipelineStep;
+
+    providers: {
+      old: LlmProvider;
+      new: LlmProvider;
+    };
   }];
 
   'step:run': [{
@@ -35,8 +46,8 @@ export interface IPipelineSessionEvents {
   }];
 
   'log': [{
-    message: unknown[];
     pipeline: Pipeline;
+    message: unknown[];
   }];
 
   'warning': [{

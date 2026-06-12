@@ -1,10 +1,10 @@
-import { createMistral } from '@ai-sdk/mistral';
+import { createMistral, MistralLanguageModelOptions } from '@ai-sdk/mistral';
 import { LanguageModel } from 'ai';
 
 import { SetPartialKeys } from '../../../../types';
 import { LlmProvider } from './model';
 
-export class LlmMistralProvider extends LlmProvider {
+export class LlmMistralProvider extends LlmProvider<MistralLanguageModelOptions> {
   public name: string = 'mistral';
 
   public tag: LanguageModel = createMistral({
@@ -22,6 +22,13 @@ export class LlmMistralProvider extends LlmProvider {
 
       skills: [...this.skills],
       mcp: [...this.mcp],
+
+      ...(this.fallback && {
+        fallback: {
+          strategy: this.fallback.strategy,
+          providers: [...this.fallback.providers],
+        },
+      }),
     });
 
     return <this>clone;

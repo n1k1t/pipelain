@@ -22,6 +22,13 @@ export class LlmGoogleProvider extends LlmProvider<GoogleLanguageModelOptions> {
 
       skills: [...this.skills],
       mcp: [...this.mcp],
+
+      ...(this.fallback && {
+        fallback: {
+          strategy: this.fallback.strategy,
+          providers: [...this.fallback.providers],
+        },
+      }),
     });
 
     return <this>clone;

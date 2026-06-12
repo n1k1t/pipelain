@@ -187,6 +187,38 @@ Customize LLM behavior (temperature, retry limits, tools, restricted paths) for 
 )
 ```
 
+### AI Step with Fallback
+
+Configure fallback providers for an AI step to automatically switch to alternative models or providers if the primary one fails.
+
+```ts
+import { llm } from '@n1k1t/pipelain';
+
+.step('translation', ({ factory }) => factory
+  .ai('Translating with fallback')
+  .llm(({ context }) => context.llm.assign({
+    temperature: 0.3,
+    fallback: {
+      // 'continue' - resumes the session with the new provider keeping existing tool calls and reasoning results.
+      // 'restart'  - restarts the step execution from scratch using the fallback provider.
+      strategy: 'continue',
+      providers: [
+        // Backup 1: If primary provider fails, try this model
+        llm.providers.LlmGoogleProvider.build('gemini-1.5-pro', {
+          connection: { key: process.env.GOOGLE_API_KEY! }
+        }),
+        // Backup 2: If the first backup also fails, try this model
+        llm.providers.LlmOpenAiProvider.build('gpt-4o', {
+          connection: { key: process.env.OPENAI_API_KEY! }
+        })
+      ]
+    }
+  }))
+  .schema(z.object({ text: z.string() }))
+  .prompt(['Translate this text into Spanish...'])
+)
+```
+
 ### Combining `self` and `ai` Steps
 
 Use `self` steps to perform local computations, log messages, or modify/transform the shared state.

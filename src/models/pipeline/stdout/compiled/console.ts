@@ -36,7 +36,7 @@ const renderHeader = (icon: string, spent?: number) => [
 
 export default PipelineStdout
   .build()
-  .override('log',({ pipeline, message }) => {
+  .override('log',({ pipeline, message }) =>
     console.log(
       renderHeader(colors.gray('↩')),
       ...renderTitle(pipeline),
@@ -45,8 +45,8 @@ export default PipelineStdout
       colors.gray('⇢'),
 
       ...message.map((segment) => typeof segment === 'string' ? colors.white(segment) : segment)
-    );
-  })
+    )
+  )
   .override('run', ({ pipeline, meta }) => {
     if (meta.state === 'INIT' && pipeline.context.input !== undefined) {
       const input = typeof pipeline.context.input === 'string'
@@ -100,7 +100,7 @@ export default PipelineStdout
         : colors.green.bold(`✓ ${step.title}`)
     );
   })
-  .override('step:llm:reasoning', ({ message, step, meta }) => {
+  .override('step:llm:reasoning', ({ step, meta, message }) => {
     if (meta.state !== 'DONE') {
       return null;
     }
@@ -115,7 +115,7 @@ export default PipelineStdout
       colors.gray(_.truncate(message, { length: 100 }).replace(/\n/g, '↩ '))
     );
   })
-  .override('step:llm:tool', ({ name, message, step, meta }) => {
+  .override('step:llm:tool', ({ step, meta, name, message }) => {
     if (meta.state === 'INIT') {
       return null;
     }
@@ -133,4 +133,15 @@ export default PipelineStdout
 
       colors.gray(message.replace(/\n/g, '↩ '))
     );
-  });
+  })
+  .override('step:llm:fallback', ({ step, providers }) =>
+    console.log(
+      renderHeader(colors.magenta.bold('⦸')),
+      ...renderTitle(step),
+
+      colors.gray(`⏱ ${step.title}`),
+      colors.gray('⇢'),
+
+      colors.gray(`Fallback from [${providers.old.model}] to [${providers.new.model}]`)
+    )
+  );

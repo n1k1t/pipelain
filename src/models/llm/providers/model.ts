@@ -4,7 +4,23 @@ import { LlmToolCompiler } from '../tools/model';
 import { ILlmSkill } from '../types';
 import { LlmMcp } from '../mcp';
 
-export abstract class LlmProvider<TOptions extends object = {}> {
+export interface ILlmProviderConnection {
+  /** Provider API key */
+  key: string;
+
+  /** Provider base URL */
+  url?: string;
+}
+
+export interface ILlmProviderFallback {
+  /** Strategy to `continue` or `restart` a broken session with existing reasoning results and tool calls */
+  strategy: 'continue' | 'restart';
+
+  /** Providers to go next */
+  providers: LlmProvider[];
+}
+
+export abstract class LlmProvider<TOptions extends object = any> {
   public abstract name: string;
   public abstract tag: LanguageModel;
 
@@ -14,27 +30,29 @@ export abstract class LlmProvider<TOptions extends object = {}> {
   /** Model agent steps count limit `30 default` */
   public limit: number = this.provided.limit ?? 30;
 
-  /** Model provider options */
+  /** Provider options */
   public options: TOptions = this.provided.options;
 
-  /** Model skills */
+  /** Available model skills */
   public skills: ILlmSkill[] = this.provided.skills ?? [];
 
-  /** Model tools */
+  /** Available model tools */
   public tools: Record<string, LlmToolCompiler> = this.provided.tools ?? {};
 
-  /** Models MCP servers */
+  /** Available model MCP servers */
   public mcp: LlmMcp[] = this.provided.mcp ?? [];
 
-  public connection: {
-    key: string;
-    url?: string;
-  } = this.provided.connection;
+  /** Provider connection configuration */
+  public connection: ILlmProviderConnection = this.provided.connection;
+
+  /** Provider fallback to switch if something goes wrong */
+  public fallback?: ILlmProviderFallback = this.provided.fallback;
 
   constructor(public model: string, protected provided: Pick<LlmProvider<TOptions>, 'connection' | 'options'> & {
     temperature?: number;
     limit?: number;
 
+    fallback?: LlmProvider<TOptions>['fallback'];
     skills?: LlmProvider<TOptions>['skills'];
     tools?: LlmProvider<TOptions>['tools'];
     mcp?: LlmProvider<TOptions>['mcp'];
@@ -43,9 +61,7 @@ export abstract class LlmProvider<TOptions extends object = {}> {
   public abstract clone(): this;
 
   /** Clones this instance and assigns new values */
-  public assign(
-    payload: Partial<Pick<LlmProvider<TOptions>, 'temperature' | 'options' | 'tools' | 'limit' | 'skills' | 'mcp'>>
-  ): this {
+  public assign(payload: Partial<Omit<LlmProvider<TOptions>['provided'], 'connection' | 'model'>>): this {
     const clone = this.clone();
 
     if (payload.temperature !== undefined) {
@@ -53,6 +69,9 @@ export abstract class LlmProvider<TOptions extends object = {}> {
     }
     if (payload.options) {
       clone.options = payload.options;
+    }
+    if (payload.fallback) {
+      clone.fallback = payload.fallback;
     }
     if (payload.tools) {
       clone.tools = payload.tools;
@@ -68,5 +87,28 @@ export abstract class LlmProvider<TOptions extends object = {}> {
     }
 
     return clone;
+  }
+
+  /** Returns next fallback provider */
+  public next(): null | {
+    strategy: ILlmProviderFallback['strategy'];
+    provider: LlmProvider;
+  } {
+    if (!this.fallback?.providers.length) {
+      return null;
+    }
+
+    const provider = this.fallback.providers[0];
+
+    return {
+      strategy: this.fallback.strategy,
+
+      provider: provider.assign({
+        fallback: provider.fallback ?? {
+          strategy: this.fallback.strategy,
+          providers: this.fallback.providers.slice(1),
+        },
+      }),
+    };
   }
 }

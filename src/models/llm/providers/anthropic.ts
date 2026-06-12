@@ -1,15 +1,10 @@
-import { createAnthropic } from '@ai-sdk/anthropic';
+import { AnthropicLanguageModelOptions, createAnthropic } from '@ai-sdk/anthropic';
 import { LanguageModel } from 'ai';
 
 import { SetPartialKeys } from '../../../../types';
 import { LlmProvider } from './model';
 
-export class LlmAnthropicProvider extends LlmProvider<{
-  thinking?: {
-    type?: 'enabled' | 'disabled';
-    budgetTokens?: number;
-  };
-}> {
+export class LlmAnthropicProvider extends LlmProvider<AnthropicLanguageModelOptions> {
   public name: string = 'anthropic';
 
   public tag: LanguageModel = createAnthropic({
@@ -27,6 +22,13 @@ export class LlmAnthropicProvider extends LlmProvider<{
 
       skills: [...this.skills],
       mcp: [...this.mcp],
+
+      ...(this.fallback && {
+        fallback: {
+          strategy: this.fallback.strategy,
+          providers: [...this.fallback.providers],
+        },
+      }),
     });
 
     return <this>clone;

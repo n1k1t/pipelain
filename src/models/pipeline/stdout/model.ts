@@ -5,38 +5,43 @@ type TPipelineStdoutHooks = {
   [K in keyof PipelineSession['TEvents']]: TFunction<unknown, PipelineSession['TEvents'][K]>;
 };
 
-const checkIsFinalEventState = (state: IPipelineSessionEventMeta['state']) =>
+const checkIsCompeted = (state: IPipelineSessionEventMeta['state']) =>
   state === 'DONE' || state === 'ERROR';
 
 export class PipelineStdout {
   private hooks: TPipelineStdoutHooks = {
     'warning': (event) => this.logger.info(event.message),
 
-    'log': (event) => this.logger.info(
-      `${event.pipeline.trace().reverse().map((entity) => entity.title).join(' - ')}:`,
-      ...event.message,
+    'log': ({ pipeline, message }) => this.logger.info(
+      `${pipeline.trace().reverse().map((entity) => entity.title).join(' - ')}:`,
+      ...message,
     ),
 
-    'run': (event) => checkIsFinalEventState(event.meta.state) && this.logger.info(
-      `${event.pipeline.trace().reverse().map((entity) => entity.title).join(' - ')}: [${event.meta.state}]`,
-      `in ${event.meta.spent}ms`
+    'run': ({ pipeline, meta }) => checkIsCompeted(meta.state) && this.logger.info(
+      `${pipeline.trace().reverse().map((entity) => entity.title).join(' - ')}: [${meta.state}]`,
+      `in ${meta.spent}ms`
     ),
 
-    'step:run': (event) => checkIsFinalEventState(event.meta.state) && this.logger.info(
-      `${event.step.trace().reverse().map((entity) => entity.title).join(' - ')}: [${event.meta.state}]`,
-      `in ${event.meta.spent}ms`
+    'step:run': ({ step, meta }) => checkIsCompeted(meta.state) && this.logger.info(
+      `${step.trace().reverse().map((entity) => entity.title).join(' - ')}: [${meta.state}]`,
+      `in ${meta.spent}ms`
     ),
 
-    'step:llm:tool': (event) => checkIsFinalEventState(event.meta.state) && this.logger.info(
-      `${event.step.trace().reverse().map((entity) => entity.title).join(' - ')}:`,
-      `Tool [${event.name}] [${event.meta.state}] in ${event.meta.spent}ms`,
-      `\n${event.message}`
+    'step:llm:tool': ({ step, meta, name, message }) => checkIsCompeted(meta.state) && this.logger.info(
+      `${step.trace().reverse().map((entity) => entity.title).join(' - ')}:`,
+      `Tool [${name}] [${meta.state}] in ${meta.spent}ms`,
+      `\n${message}`
     ),
 
-    'step:llm:reasoning': (event) => checkIsFinalEventState(event.meta.state) && this.logger.info(
-      `${event.step.trace().reverse().map((entity) => entity.title).join(' - ')}:`,
-      `Reasoning [${event.meta.state}] in ${event.meta.spent}ms`,
-      `\n${event.message}`
+    'step:llm:reasoning': ({ step, meta, message }) => checkIsCompeted(meta.state) && this.logger.info(
+      `${step.trace().reverse().map((entity) => entity.title).join(' - ')}:`,
+      `Reasoning [${meta.state}] in ${meta.spent}ms`,
+      `\n${message}`
+    ),
+
+    'step:llm:fallback': ({ step, providers }) => this.logger.info(
+      `${step.trace().reverse().map((entity) => entity.title).join(' - ')}:`,
+      `Fallback from [${providers.old.model}] to [${providers.new.model}]`
     ),
   };
 

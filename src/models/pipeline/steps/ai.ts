@@ -654,17 +654,26 @@ export class PipelineAiStep<
         converted.type = 'EMPTY_OUTPUT';
       }
 
-      const errors = converted.is(['EMPTY_OUTPUT']) ? [] : (provided.errors ?? []);
-      errors.push(converted);
+      const errors = (converted.is(['EMPTY_OUTPUT']) ? [] : (provided.errors ?? [])).concat([converted]);
+      const enough =
+        (iteration < provided.llm.limit && !converted.is(['EMPTY_OUTPUT', 'WRONG_RESPONSE'])) ||
+        iteration >= provided.llm.limit ||
+        errors.filter((nested) => nested.is(['WRONG_RESPONSE'])).length >= 3;
 
-      if (iteration < provided.llm.limit && !converted.is(['EMPTY_OUTPUT', 'WRONG_RESPONSE'])) {
+      const fallback = enough ? provided.llm.next() : null;
+      if (!fallback && enough) {
         throw converted;
       }
-      if (iteration >= provided.llm.limit) {
-        throw converted;
-      }
-      if (errors.filter((nested) => nested.is(['WRONG_RESPONSE'])).length >= 3) {
-        throw converted;
+
+      if (fallback) {
+        this.pipeline.session.emit('step:llm:fallback', {
+          step: this,
+
+          providers: {
+            old: provided.llm,
+            new: fallback.provider,
+          },
+        });
       }
 
       return this.generate({
@@ -676,6 +685,13 @@ export class PipelineAiStep<
         iteration: iteration + 1,
         schema: provided.schema,
         tools: provided.tools,
+
+        ...(fallback && {
+          errors: [],
+
+          llm: fallback.provider,
+          iteration: undefined,
+        }),
 
         messages: {
           info,
@@ -689,6 +705,11 @@ export class PipelineAiStep<
               actions: actions.sequence.map((id) => actions.map[id]),
             }])
             : provided.messages.history,
+
+          ...(fallback?.strategy === 'restart' && {
+            history: undefined,
+            info: undefined,
+          })
         },
       });
     }

@@ -31,6 +31,7 @@ Powerful utility to build and execute type-safe AI pipelines with structured out
   - [Logging and Events](#logging-and-events)
   - [Structured Prompt Content](#structured-prompt-content)
   - [AI Step with LLM Configuration](#ai-step-with-llm-configuration)
+  - [AI Step with Fallback](#ai-step-with-fallback)
   - [Debugging AI Steps](#debugging-ai-steps)
   - [Combining self and ai Steps](#combining-self-and-ai-steps)
   - [Parallel Execution with swarm](#parallel-execution-with-swarm)
@@ -299,6 +300,38 @@ You can customize the LLM behavior for a specific step, such as changing the tem
       'Summarize findings and provide source links'
     ])
   ])
+)
+```
+
+### AI Step with Fallback
+
+You can configure fallback providers for an AI step to automatically switch to alternative models or providers if the primary one fails. This is useful for increasing reliability or using a more powerful model only as a backup:
+
+```ts
+import { llm } from '@n1k1t/pipelain';
+
+.step('translation', ({ factory }) => factory
+  .ai('Translating with fallback')
+  .llm(({ context }) => context.llm.assign({
+    temperature: 0.3,
+    fallback: {
+      // 'continue' - resumes the session with the new provider keeping existing tool calls and reasoning results.
+      // 'restart'  - restarts the step execution from scratch using the fallback provider.
+      strategy: 'continue',
+      providers: [
+        // Backup 1: If primary provider fails, try this model
+        llm.providers.LlmGoogleProvider.build('gemini-1.5-pro', {
+          connection: { key: process.env.GOOGLE_API_KEY! }
+        }),
+        // Backup 2: If the first backup also fails, try this model
+        llm.providers.LlmOpenAiProvider.build('gpt-4o', {
+          connection: { key: process.env.OPENAI_API_KEY! }
+        })
+      ]
+    }
+  }))
+  .schema(z.object({ text: z.string() }))
+  .prompt(['Translate this text into Spanish...'])
 )
 ```
 
