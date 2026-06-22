@@ -3,7 +3,7 @@ import type { IPipelineConfiguration } from '../types';
 import type { PipelineCompiler } from '../model';
 
 import { IPipelineStepDefinition, IPipelineStepSource, PipelineStep, PipelineStepCompiler } from './model';
-import { PipelineStepCompilationError } from './errors';
+import { PipelineStepCompilationError } from '../errors';
 import { PipelineParameters } from '../parameters';
 import { buildMetaManager } from '../../../utils';
 import { chunkify } from '../../../utils';

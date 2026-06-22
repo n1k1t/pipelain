@@ -11,7 +11,7 @@ converters.file = (input) => {
     tags.push(`<path>${input.path}</path>`);
   }
 
-  return tags.concat([`<content>\n${input.content}\n</content>`]).join('\n');
+  return tags.concat(`<content>\n${input.content}\n</content>`).join('\n');
 };
 
 converters.ol = (input) => input.map((line, index) => `${index + 1}. ${line}`).join('\n');

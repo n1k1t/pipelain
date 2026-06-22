@@ -1,5 +1,6 @@
 import EventEmitter from 'events';
 
+import type { PipelineAiError } from './errors';
 import type { PipelineStep } from './steps';
 import type { LlmProvider } from '../llm';
 import type { Pipeline } from './model';
@@ -28,6 +29,7 @@ export interface IPipelineSessionEvents {
 
   'step:llm:fallback': [{
     step: PipelineStep;
+    reason: PipelineAiError;
 
     providers: {
       old: LlmProvider;

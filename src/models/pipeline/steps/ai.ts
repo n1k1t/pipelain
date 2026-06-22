@@ -1,24 +1,15 @@
 import _ from 'lodash';
 
+import { ModelMessage, Output, ProviderMetadata, streamText, Tool, ToolResultPart } from 'ai';
 import { ZodType } from 'zod/v3';
 import { zocker } from 'zocker';
-import {
-  APICallError,
-  ModelMessage,
-  NoObjectGeneratedError,
-  Output,
-  ProviderMetadata,
-  streamText,
-  Tool,
-  ToolResultPart,
-} from 'ai';
 
 import { IPipelineStepDefinition, IPipelineStepSource, PipelineStep, PipelineStepCompiler } from './model';
 import { buildMetaManager, cast, disposify, IMetaManager, preview } from '../../../utils';
 import { IPipelineConfiguration, TPipelineContentPredicate } from '../types';
 import { ArticleContent, ContentFactory, SourcesContent } from '../../content';
+import { PipelineAiError, PipelineStepCompilationError } from '../errors';
 import { TPipelineStepNestedHandler, TPipelineStepType } from './types';
-import { PipelineStepCompilationError } from './errors';
 import { PipelineParameters } from '../parameters';
 import { VirtualFileSystem } from '../../vfs';
 import { LlmProvider } from '../../llm/providers/model';
@@ -71,37 +62,6 @@ const renderDebugHeader = (title: string): string => [
   title.toUpperCase().padStart(40, ' '),
   '@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@',
 ].join('\n');
-
-export class PipelineAiStepError extends Error {
-  constructor(
-    public type: 'EMPTY_OUTPUT' | 'WRONG_RESPONSE' | 'BAD_API_CALL',
-    public reason: string = 'none'
-  ) {
-    super(`Got error [${type}] while generation. Reason: ${reason}`);
-  }
-
-  public is(types: PipelineAiStepError['type'][]): boolean {
-    return types.includes(this.type);
-  }
-
-  static convert(error: unknown) {
-    if (error instanceof PipelineAiStepError) {
-      return error;
-    }
-
-    if (APICallError.isInstance(error)) {
-      return new PipelineAiStepError('BAD_API_CALL', error.message);
-    }
-    if (NoObjectGeneratedError.isInstance(error)) {
-      return new PipelineAiStepError('WRONG_RESPONSE', error.message);
-    }
-
-    return new PipelineAiStepError(
-      'BAD_API_CALL',
-      String(_.isObject(error) && 'message' in error ? error.message : error)
-    );
-  }
-}
 
 export class PipelineAiStepCompiler<
   TConfiguration extends IPipelineConfiguration = any,
@@ -348,9 +308,12 @@ export class PipelineAiStep<
 
     iteration?: number;
     schema?: ZodType<TSchema>;
-
-    errors?: PipelineAiStepError[];
     tools?: Record<string, Tool>;
+
+    errors?: {
+      global?: PipelineAiError[];
+      local?: PipelineAiError[];
+    };
   }): Promise<TSchema> {
     const iteration = provided.iteration ?? 1;
     const actions = {
@@ -628,13 +591,13 @@ export class PipelineAiStep<
         }
 
         if (fragment.type === 'error' && fragment.error instanceof Error) {
-          throw PipelineAiStepError.convert(fragment.error);
+          throw PipelineAiError.convert({ error: fragment.error, llm: provided.llm });
         }
       }
 
       const output = await stream.output;
       if (typeof output === 'string' && !output.length) {
-        throw new PipelineAiStepError('EMPTY_OUTPUT');
+        throw PipelineAiError.build({ type: 'EMPTY_OUTPUT', llm: provided.llm });
       }
 
       const usage = await stream.usage;
@@ -648,25 +611,30 @@ export class PipelineAiStep<
 
       return output;
     } catch (error: unknown) {
-      const converted = PipelineAiStepError.convert(error);
+      const converted = PipelineAiError.convert({ error, llm: provided.llm });
 
       if (actions.sequence.length) {
-        converted.type = 'EMPTY_OUTPUT';
+        converted.assign({ type: 'EMPTY_OUTPUT' });
       }
 
-      const errors = (converted.is(['EMPTY_OUTPUT']) ? [] : (provided.errors ?? [])).concat([converted]);
+      const errors = {
+        global: provided.errors?.global ?? [],
+        local: (converted.is(['EMPTY_OUTPUT']) ? [] : (provided.errors?.local ?? [])).concat(converted),
+      };
+
       const enough =
         (iteration < provided.llm.limit && !converted.is(['EMPTY_OUTPUT', 'WRONG_RESPONSE'])) ||
         iteration >= provided.llm.limit ||
-        errors.filter((nested) => nested.is(['WRONG_RESPONSE'])).length >= 3;
+        errors.local.filter((nested) => nested.is(['WRONG_RESPONSE'])).length >= 3;
 
       const fallback = enough ? provided.llm.next() : null;
       if (!fallback && enough) {
-        throw converted;
+        throw converted.assign({ sequence: errors.global });
       }
 
       if (fallback) {
         this.pipeline.session.emit('step:llm:fallback', {
+          reason: converted,
           step: this,
 
           providers: {
@@ -687,7 +655,10 @@ export class PipelineAiStep<
         tools: provided.tools,
 
         ...(fallback && {
-          errors: [],
+          errors: {
+            global: errors.global.concat(converted),
+            local: undefined,
+          },
 
           llm: fallback.provider,
           iteration: undefined,
@@ -700,16 +671,16 @@ export class PipelineAiStep<
           user: provided.messages.user,
 
           history: converted.is(['EMPTY_OUTPUT'])
-            ? (provided.messages.history ?? []).concat([{
+            ? (provided.messages.history ?? []).concat({
               provider: Object.values(actions.map).find((action) => action.provider)?.provider,
               actions: actions.sequence.map((id) => actions.map[id]),
-            }])
+            })
             : provided.messages.history,
 
           ...(fallback?.strategy === 'restart' && {
             history: undefined,
             info: undefined,
-          })
+          }),
         },
       });
     }

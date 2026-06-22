@@ -79,7 +79,7 @@ export class Rg {
     }
 
     if (options?.exclude) {
-      for (const pattern of options.exclude.concat(['.git/**'])) {
+      for (const pattern of options.exclude.concat('.git/**')) {
         args.push(`--glob=!'${pattern}'`);
       }
     }
@@ -88,7 +88,7 @@ export class Rg {
       args.push(`--max-count=${options.limit}`);
     }
 
-    const result = await bash.exec(args.concat([`'${pattern}'`], options?.path ? [options.path] : []).join(' '));
+    const result = await bash.exec(args.concat(`'${pattern}'`, options?.path ? [options.path] : []).join(' '));
     if (result.status === 'ERROR') {
       return [];
     }

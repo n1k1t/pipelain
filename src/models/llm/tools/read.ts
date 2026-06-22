@@ -65,9 +65,9 @@ export default LlmToolCompiler
       const sliced = lines.slice(start ? start - 1 : 0, end ? end : lines.length);
       const content = sliced.join('\n');
 
-      if (content.split(/\s+/).length > 5000) {
+      if (content.length > 50000) {
         throw LlmToolExecutionError.build('read', [
-          'The file content is too large (over 5000 tokens).',
+          'The file content is too large (over 50000 chars).',
           'Please use a smaller range with "start" and "end" parameters, or use the "grep" tool to find the relevant context',
         ]);
       }

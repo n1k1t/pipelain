@@ -4,9 +4,9 @@ import type { PipelineCompiler } from '../model';
 import type { TFunction } from '../../../../types';
 
 import { IPipelineStepDefinition, IPipelineStepSource, PipelineStep, PipelineStepCompiler } from './model';
-import { PipelineStepCompilationError } from './errors';
-import { buildMetaManager } from '../../../utils';
+import { PipelineStepCompilationError } from '../errors';
 import { PipelineParameters } from '../parameters';
+import { buildMetaManager } from '../../../utils';
 
 export type TPipelineLoopStepVerdictStatus = 'initial' | 'fulfilled' | 'pending' | 'rejected' | 'voided';
 

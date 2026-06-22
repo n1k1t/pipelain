@@ -2,7 +2,7 @@ import { ZodType } from 'zod/v3';
 
 import { IPipelineStepDefinition, IPipelineStepSource, PipelineStep, PipelineStepCompiler } from './model';
 import { TPipelineStepNestedHandler, TPipelineStepType } from './types';
-import { PipelineStepCompilationError } from './errors';
+import { PipelineStepCompilationError } from '../errors';
 import { IPipelineConfiguration } from '../types';
 import { PipelineParameters } from '../parameters';
 import { buildMetaManager } from '../../../utils';
