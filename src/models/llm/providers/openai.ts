@@ -13,9 +13,10 @@ export class LlmOpenaiProvider extends LlmProvider<OpenAIChatLanguageModelOption
   })(this.model);
 
   public clone(): this {
-    const clone = new LlmOpenaiProvider(this.model, {
+    const clone = LlmOpenaiProvider.build(this.model, {
       temperature: this.temperature,
       connection: this.connection,
+      limit: this.limit,
 
       options: Object.assign({}, this.options),
       tools: Object.assign({}, this.tools),

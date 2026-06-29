@@ -13,9 +13,10 @@ export class LlmAnthropicProvider extends LlmProvider<AnthropicLanguageModelOpti
   })(this.model);
 
   public clone(): this {
-    const clone = new LlmAnthropicProvider(this.model, {
+    const clone = LlmAnthropicProvider.build(this.model, {
       temperature: this.temperature,
       connection: this.connection,
+      limit: this.limit,
 
       options: Object.assign({}, this.options),
       tools: Object.assign({}, this.tools),

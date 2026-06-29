@@ -13,9 +13,10 @@ export class LlmProxyProvider extends LlmProvider<object> {
   })(this.model);
 
   public clone(): this {
-    const clone = new LlmProxyProvider(this.model, {
+    const clone = LlmProxyProvider.build(this.model, {
       temperature: this.temperature,
       connection: this.connection,
+      limit: this.limit,
 
       options: Object.assign({}, this.options),
       tools: Object.assign({}, this.tools),

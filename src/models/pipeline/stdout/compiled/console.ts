@@ -100,41 +100,41 @@ export default PipelineStdout
         : colors.green.bold(`✓ ${step.title}`)
     );
   })
-  .override('step:llm:reasoning', ({ step, meta, message }) => {
-    if (meta.state !== 'DONE') {
+  .override('step:ai:reasoning', (action) => {
+    if (action.meta.state !== 'DONE') {
       return null;
     }
 
     console.log(
-      renderHeader(colors.blue.bold('⚖'), meta.spent),
-      ...renderTitle(step),
+      renderHeader(colors.blue.bold('⚖'), action.meta.spent),
+      ...renderTitle(action.step),
 
-      colors.gray(`⏱ ${step.title}`),
+      colors.gray(`⏱ ${action.step.title}`),
       colors.gray('⇢'),
 
-      colors.gray(_.truncate(message, { length: 100 }).replace(/\n/g, '↩ '))
+      colors.gray(action.preview())
     );
   })
-  .override('step:llm:tool', ({ step, meta, name, message }) => {
-    if (meta.state === 'INIT') {
+  .override('step:ai:tool', (action) => {
+    if (action.meta.state === 'INIT') {
       return null;
     }
 
     console.log(
-      renderHeader(colors.cyan.bold('∮'), meta.spent),
-      ...renderTitle(step),
+      renderHeader(colors.cyan.bold('∮'), action.meta.spent),
+      ...renderTitle(action.step),
 
-      colors.gray(`⏱ ${step.title}`),
+      colors.gray(`⏱ ${action.step.title}`),
       colors.gray('⇢'),
 
-      meta.state === 'ERROR'
-        ? colors.red.bold(`${name}`)
-        : colors.cyan.bold(`${name}`),
+      action.meta.state === 'ERROR'
+        ? colors.red.bold(`${action.name}`)
+        : colors.cyan.bold(`${action.name}`),
 
-      colors.gray(message.replace(/\n/g, '↩ '))
+      colors.gray(action.preview())
     );
   })
-  .override('step:llm:fallback', ({ step, providers }) =>
+  .override('step:ai:fallback', ({ step, providers }) =>
     console.log(
       renderHeader(colors.magenta.bold('⦸')),
       ...renderTitle(step),

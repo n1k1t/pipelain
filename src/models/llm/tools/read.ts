@@ -40,13 +40,8 @@ export default LlmToolCompiler
     })
   )
   .output(z.string().describe('File content'))
-  .execute(({ vfs, context }) => async ({ path, start, end }) => {
+  .execute(({ context }) => async ({ path, start, end }) => {
     try {
-      const virtual = vfs.get(path);
-      if (virtual) {
-        return virtual.content;
-      }
-
       if (!checkPatternIsRestricted(path)) {
         throw LlmToolExecutionError.build('read', `Path "${path}" is going to out of scope the project`);
       }

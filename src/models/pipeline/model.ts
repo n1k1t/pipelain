@@ -19,10 +19,17 @@ export class PipelineCompiler<TConfiguration extends IPipelineConfiguration = an
     input?: Pipeline<TConfiguration>['schema'];
 
     defaults?: PipelineContext<TConfiguration>['defaults'];
+    debug?: boolean;
   }) {}
 
   public description(content: string): this {
     this.definition.description = content;
+    return this;
+  }
+
+  /** Marks all nested steps to debug */
+  public debug(): this {
+    this.definition.debug = true;
     return this;
   }
 
@@ -38,6 +45,7 @@ export class PipelineCompiler<TConfiguration extends IPipelineConfiguration = an
   public clone(): PipelineCompiler<TConfiguration> {
     return new PipelineCompiler<TConfiguration>(this.title, {
       defaults: this.definition.defaults,
+      debug: this.definition.debug,
 
       steps: this.definition.steps,
       input: this.definition.input,
@@ -97,6 +105,8 @@ export class PipelineCompiler<TConfiguration extends IPipelineConfiguration = an
 
     session?: PipelineSession;
     parent?: Pipeline['parent'];
+
+    debug?: boolean;
   }): Promise<Pipeline<TConfiguration>> {
     const project = provided?.project ?? await Project.build();
     const session = provided?.session
@@ -108,16 +118,17 @@ export class PipelineCompiler<TConfiguration extends IPipelineConfiguration = an
         : null;
 
     const pipeline = Pipeline.build<TConfiguration>({
-      title: this.title,
       description: this.definition.description,
+      title: this.title,
 
       schema: this.definition.input ?? z.undefined(),
+      debug: provided?.debug ?? this.definition.debug,
 
       context: PipelineContext.build(project, this.definition.defaults),
       session: session ?? PipelineSession.build(),
 
-      steps: this.definition.steps,
       parent: provided?.parent,
+      steps: this.definition.steps,
     });
 
     if (provided?.stdout) {
@@ -138,21 +149,25 @@ export class Pipeline<TConfiguration extends IPipelineConfiguration = any> {
   public context: PipelineContext<TConfiguration> = this.provided.context;
   public session: PipelineSession = this.provided.session;
 
+  public debug: boolean = this.provided.debug ?? false;
   public title: string = this.provided.title;
-  public description: string = this.provided.description ?? `Pipeline of ${this.title}`;
 
+  public description: string = this.provided.description ?? `Pipeline of ${this.title}`;
   public schema: ZodType<TConfiguration['input']> = this.provided.schema;
+
   public parent?: Pipeline | PipelineStep = this.provided.parent;
 
   constructor(protected provided: Pick<Pipeline, 'context'> & {
-    title: string;
     schema: Pipeline['schema'];
+    title: string;
 
-    steps: TPipelineCompilerConfigurationStep[];
     session: PipelineSession;
+    steps: TPipelineCompilerConfigurationStep[];
 
-    parent?: Pipeline['parent'];
     description?: string;
+    parent?: Pipeline['parent'];
+
+    debug?: boolean;
   }) {}
 
   public async run(input: TConfiguration['input']): Promise<TConfiguration['state']> {
@@ -178,6 +193,8 @@ export class Pipeline<TConfiguration extends IPipelineConfiguration = any> {
 
             pipeline: this,
             parent: this,
+
+            debug: this.provided.debug,
           })
         )
         : null;

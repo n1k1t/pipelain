@@ -13,9 +13,10 @@ export class LlmGoogleProvider extends LlmProvider<GoogleLanguageModelOptions> {
   })(this.model);
 
   public clone(): this {
-    const clone = new LlmGoogleProvider(this.model, {
+    const clone = LlmGoogleProvider.build(this.model, {
       temperature: this.temperature,
       connection: this.connection,
+      limit: this.limit,
 
       options: Object.assign({}, this.options),
       tools: Object.assign({}, this.tools),

@@ -9,11 +9,15 @@ export * from './models/pipeline/stdout';
 export * from './models/pipeline/errors';
 export * from './models/pipeline/model';
 
+export * from './models/pipeline/steps/ai/actions';
+export * from './models/pipeline/steps/ai/errors';
+
 export * from './models/project';
 export * from './models/file';
 export * from './models/bash';
 
 export * from './models/content/factory';
+export * from './models/content/types';
 
 export * from './models/llm/providers/model';
 export * from './models/llm/tools/model';

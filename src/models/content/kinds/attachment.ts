@@ -1,4 +1,3 @@
-import path from 'path';
 import _ from 'lodash';
 
 import { SetPartialKeys } from '../../../../types';
@@ -7,11 +6,10 @@ import { Content } from './model';
 export class AttachmentContent extends Content<'attachment', {
   content: unknown;
   title: string;
-  path: string;
+  key: string;
 
   /** File extension with dot (`.json`, `.md` and etc) */
-  extension: string;
-  isVirtual: boolean;
+  extension?: string;
 }> {
   public render(): string {
     return _.isObject(this.payload.content)
@@ -20,22 +18,16 @@ export class AttachmentContent extends Content<'attachment', {
   }
 
   static build(
-    payload: SetPartialKeys<AttachmentContent['TSchema'], 'extension' | 'path' | 'isVirtual'>
+    payload: SetPartialKeys<AttachmentContent['TSchema'], 'key'>
   ): AttachmentContent {
-    const extension = payload.extension ?? (
-      payload.path
-        ? path.extname(payload.path)
-        : _.isObject(payload.content) ? '.json' : '.txt'
-    );
+    const extension = payload.extension ?? (_.isObject(payload.content) ? '.json' : undefined);
 
     return new AttachmentContent('attachment', {
       extension,
 
       content: payload.content,
       title: payload.title,
-
-      path: payload.path ?? `${_.kebabCase(payload.title).toLowerCase()}${extension}`,
-      isVirtual: payload.isVirtual ?? !Boolean(payload.path),
+      key: payload.key ?? `${_.kebabCase(payload.title).toLowerCase()}${extension ?? ''}`,
     });
   }
 }

@@ -150,3 +150,17 @@ export const disposify = <T>(parameters: {
   entity: parameters.entity,
   [Symbol.asyncDispose]: () => parameters.exit(parameters.entity),
 });
+
+export const parseJsonSafe = <T extends object>(serializedJson: string) => {
+  try {
+    return <const>{
+      status: 'OK',
+      result: <T>JSON.parse(serializedJson),
+    };
+  } catch(error) {
+    return <const>{
+      status: 'ERROR',
+      error: error instanceof Error ? error : new Error('Unknown'),
+    };
+  }
+};

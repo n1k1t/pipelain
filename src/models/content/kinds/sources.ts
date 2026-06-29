@@ -1,21 +1,22 @@
-import json2md, { DataObject } from 'json2md';
+import json2md from 'json2md';
 
+import { IJsonContent } from '../types';
 import { Content } from './model';
 import { cast } from '../../../utils';
 
 export class SourcesContent extends Content<'sources', {
-  location: string;
+  path: string;
   title?: string;
 }[]> {
   public render(): string {
     return json2md(
-      cast<DataObject>({ ol: this.serialize() })
+      cast<IJsonContent>({ ol: this.serialize() })
     );
   }
 
   public serialize(): string[] {
     return this.payload.map(
-      (line) => line.title ? `\`${line.location}\`: ${line.title}` : `\`${line.location}\``
+      (line) => line.title ? `\`${line.path}\`: ${line.title}` : `\`${line.path}\``
     );
   }
 

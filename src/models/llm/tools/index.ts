@@ -1,6 +1,7 @@
 export { default as search } from './search';
 export { default as fetch } from './fetch';
 
+export { default as attachment } from './attachment';
 export { default as mkdir } from './mkdir';
 export { default as write } from './write';
 export { default as glob } from './glob';

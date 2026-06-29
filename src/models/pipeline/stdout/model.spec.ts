@@ -112,12 +112,12 @@ it('should log step:llm:tool event when state is not INIT', () => {
   const stdout = PipelineStdout.build(logger);
   const session = { on: jest.fn() } as any;
   stdout.listen(session);
-  const handler = session.on.mock.calls.find((c: any) => c[0] === 'step:llm:tool')[1];
+  const handler = session.on.mock.calls.find((c: any) => c[0] === 'step:ai:tool')[1];
   handler({
     step: { trace: () => [{ title: 'S' }] },
     name: 'T',
     meta: { state: 'DONE', spent: 30 },
-    message: 'tool-msg',
+    preview: () => 'tool-msg',
   });
   expect(logger.info).toHaveBeenCalledWith('S:', 'Tool [T] [DONE] in 30ms', '\ntool-msg');
 });
@@ -128,7 +128,11 @@ it('should log step:llm:reasoning event when state is not INIT', () => {
   const stdout = PipelineStdout.build(logger);
   const session = { on: jest.fn() } as any;
   stdout.listen(session);
-  const handler = session.on.mock.calls.find((c: any) => c[0] === 'step:llm:reasoning')[1];
-  handler({ step: { trace: () => [{ title: 'S' }] }, meta: { state: 'DONE', spent: 40 }, message: 'reason-msg' });
+  const handler = session.on.mock.calls.find((c: any) => c[0] === 'step:ai:reasoning')[1];
+  handler({
+    step: { trace: () => [{ title: 'S' }] },
+    meta: { state: 'DONE', spent: 40 },
+    preview: () => 'reason-msg',
+  });
   expect(logger.info).toHaveBeenCalledWith('S:', 'Reasoning [DONE] in 40ms', '\nreason-msg');
 });

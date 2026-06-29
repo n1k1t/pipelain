@@ -48,13 +48,6 @@ export default LlmToolCompiler
         if (!checkPatternIsRestricted(location)) {
           throw LlmToolExecutionError.build('grep', 'Pattern or path is going to out of scope the project');
         }
-
-        if (location.startsWith('__vfs__/')) {
-          throw LlmToolExecutionError.build(
-            'grep',
-            'Cannot grep virtual file. Only `read` tool is allowed to work with this file'
-          );
-        }
       }
 
       const rg = Rg.build();

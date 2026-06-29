@@ -14,7 +14,7 @@ export interface ILlmProviderConnection {
 
 export interface ILlmProviderFallback {
   /** Strategy to `continue` or `restart` a broken session with existing reasoning results and tool calls */
-  strategy: 'continue' | 'restart';
+  strategy?: 'continue' | 'restart';
 
   /** Providers to go next */
   providers: LlmProvider[];

@@ -1,12 +1,13 @@
-import json2md, { DataObject } from 'json2md';
+import json2md from 'json2md';
 
+import { IJsonContent } from '../types';
 import { Content } from './model';
 import { cast } from '../../../utils';
 
 export class TasksContent extends Content<'tasks', string[]> {
   public render(): string {
     return json2md(
-      cast<DataObject>({ ol: this.payload })
+      cast<IJsonContent>({ ol: this.payload })
     );
   }
 

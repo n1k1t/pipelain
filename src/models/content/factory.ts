@@ -2,10 +2,9 @@ import path from 'path';
 import fs from 'fs/promises';
 import fg from 'fast-glob';
 
-import { DataObject } from 'json2md';
-
 import { Content, TContentType } from './kinds/model';
 import { SetPartialKeys } from '../../../types';
+import { IJsonContent } from './types';
 import { Project } from '../project';
 import { File } from '../file';
 
@@ -25,7 +24,7 @@ export class ContentFactory {
   constructor(protected project?: Project) {}
 
   /** Creates `## Article` with nested content */
-  public article(title: string, content: DataObject[]): kinds.ArticleContent {
+  public article(title: string, content: IJsonContent[]): kinds.ArticleContent {
     return kinds.ArticleContent.build({ title, content });
   }
 
@@ -51,9 +50,9 @@ export class ContentFactory {
 
   public attachment(
     title: string,
-    payload: Omit<SetPartialKeys<kinds.AttachmentContent['TSchema'], 'extension' | 'path' | 'isVirtual'>, 'title'>
+    payload: Omit<SetPartialKeys<kinds.AttachmentContent['TSchema'], 'extension' | 'key'>, 'title'>
   ): kinds.AttachmentContent {
-    return kinds.AttachmentContent.build({ title, ...payload, isVirtual: true });
+    return kinds.AttachmentContent.build({ title, ...payload });
   }
 
   public async file(title: string, location: string | string[]): Promise<kinds.AttachmentContent> {
@@ -63,7 +62,7 @@ export class ContentFactory {
       title,
 
       content: file.content,
-      path: file.path,
+      key: file.path,
     });
   }
 
@@ -87,7 +86,7 @@ export class ContentFactory {
 
           extension: file.extension,
           content: file.content,
-          path: file.path,
+          key: file.path,
         })
       )
     );

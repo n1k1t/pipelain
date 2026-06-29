@@ -28,19 +28,12 @@ export default LlmToolCompiler
     })
   )
   .output(z.string().describe('Success message'))
-  .execute(({ context, vfs, options }) => async ({ path: location, replacements }) => {
+  .execute(({ context, options }) => async ({ path: location, replacements }) => {
     const mutex = {
       release: cast<null | TFunction<Promise<void>>>(null),
     };
 
     try {
-      if (location.startsWith('__vfs__/')) {
-        throw LlmToolExecutionError.build(
-          'edit',
-          'Cannot edit virtual file. Only `read` tool is allowed to work with this file'
-        );
-      }
-
       if (!checkPatternIsRestricted(location)) {
         throw LlmToolExecutionError.build('edit', `Path "${location}" is going to out of scope the project`);
       }

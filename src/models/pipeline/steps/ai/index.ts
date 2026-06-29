@@ -2,66 +2,24 @@ import _ from 'lodash';
 
 import { ModelMessage, Output, ProviderMetadata, streamText, Tool, ToolResultPart } from 'ai';
 import { ZodType } from 'zod/v3';
-import { zocker } from 'zocker';
 
-import { IPipelineStepDefinition, IPipelineStepSource, PipelineStep, PipelineStepCompiler } from './model';
-import { buildMetaManager, cast, disposify, IMetaManager, preview } from '../../../utils';
-import { IPipelineConfiguration, TPipelineContentPredicate } from '../types';
-import { ArticleContent, ContentFactory, SourcesContent } from '../../content';
-import { PipelineAiError, PipelineStepCompilationError } from '../errors';
-import { TPipelineStepNestedHandler, TPipelineStepType } from './types';
-import { PipelineParameters } from '../parameters';
-import { VirtualFileSystem } from '../../vfs';
-import { LlmProvider } from '../../llm/providers/model';
-import { skill } from '../../llm';
-import { File } from '../../file';
+import { IPipelineStepSource, PipelineStep, PipelineStepCompiler } from '../model';
+import { IPipelineConfiguration, TPipelineContentPredicate } from '../../types';
+import { PipelineAiReasoningAction, PipelineAiToolAction } from './actions';
+import { ArticleContent, ContentFactory, SourcesContent } from '../../../content';
+import { TPipelineStepNestedHandler, TPipelineStepType } from '../types';
+import { buildMetaManager, cast, disposify } from '../../../../utils';
+import { PipelineStepCompilationError } from '../../errors';
+import { PipelineParameters } from '../../parameters';
+import { VirtualFileSystem } from '../../../vfs';
+import { skill, attachment } from '../../../llm';
+import { PipelineAiError } from './errors';
+import { useStepDebug } from './utils';
+import { LlmProvider } from '../../../llm/providers/model';
+import { IDefinition } from './types';
 
-interface IDefinition<TConfiguration extends IPipelineConfiguration> extends IPipelineStepDefinition {
-  prompt: TPipelineContentPredicate | TPipelineStepNestedHandler<TConfiguration, TPipelineContentPredicate>;
-
-  schema?: ZodType | TPipelineStepNestedHandler<TConfiguration, ZodType>;
-  llm?: LlmProvider | TPipelineStepNestedHandler<TConfiguration, LlmProvider>;
-
-  debug?: boolean;
-}
-
-interface IAgentToolCall {
-  type: 'tool';
-
-  id: string;
-  name: string;
-
-  provider?: ProviderMetadata;
-
-  output: {
-    type: 'text' | 'json' | 'error',
-    value: unknown;
-  };
-
-  input: {
-    preview: string;
-    value: unknown;
-  };
-}
-
-interface IAgentReasoning {
-  type: 'reasoning';
-
-  id: string;
-  text: string;
-
-  provider?: ProviderMetadata;
-}
-
-type TAgentAction =
-  | (IAgentToolCall & { meta: IMetaManager })
-  | (IAgentReasoning & { meta: IMetaManager });
-
-const renderDebugHeader = (title: string): string => [
-  '@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@',
-  title.toUpperCase().padStart(40, ' '),
-  '@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@',
-].join('\n');
+export * from './actions';
+export * from './errors';
 
 export class PipelineAiStepCompiler<
   TConfiguration extends IPipelineConfiguration = any,
@@ -106,7 +64,7 @@ export class PipelineAiStepCompiler<
 
     return new PipelineAiStep(this.type, {
       title: this.definition.title,
-      debug: this.definition.debug,
+      debug: this.definition.debug ?? provided.pipeline.debug,
 
       prompt: this.definition.prompt,
       schema: this.definition.schema,
@@ -188,27 +146,20 @@ export class PipelineAiStep<
           }
 
           if (ContentFactory.is('attachment', segment)) {
-            if (segment.payload.isVirtual) {
-              return vfs.register({
-                title: segment.payload.title,
-                path: segment.payload.path,
+            return vfs.register({
+              title: segment.payload.title,
+              key: segment.payload.key,
 
-                content: segment.render(),
-              });
-            }
-
-            return sources.push(
-              ...SourcesContent
-                .build([{ location: segment.payload.path, title: segment.payload.title }])
-                .serialize()
-            )
+              content: segment.render(),
+            });
           }
         });
 
-      for (const file of vfs.values()) {
-        sources.push(
-          ...SourcesContent.build([{ location: file.path, title: file.title }]).serialize()
-        );
+      if (articles.length) {
+        system.push(...articles);
+      }
+      if (rules.length) {
+        system.push(ArticleContent.build({ title: 'Rules', content: [{ ol: rules }] }).render());
       }
 
       if (llm.skills.length) {
@@ -226,32 +177,48 @@ export class PipelineAiStep<
         system.push(
           ArticleContent
             .build({
-              title: 'Sources. Read **ALL** the files below **(IMPORTANT: FOLLOW THE ORDER)**',
+              title: 'Sources. Read **ALL** the content below using `read` tool **(IMPORTANT: FOLLOW THE ORDER)**',
               content: [{ ol: sources }],
             })
             .render()
         );
       }
 
-      if (rules.length) {
-        system.push(ArticleContent.build({ title: 'Rules', content: [{ ol: rules }] }).render());
+      if (vfs.size) {
+        system.push(
+          ArticleContent
+            .build({
+              title: 'Attachments. Read **ALL** the content below using `attachment` tool **(IMPORTANT: FOLLOW THE ORDER)**',
+
+              content: [{
+                ol: SourcesContent
+                  .build([...vfs.values()].map((file) => ({ path: file.key, title: file.title })))
+                  .serialize()
+              }],
+            })
+            .render()
+        );
       }
-      if (articles.length) {
-        system.push(...articles);
-      }
+
       if (tasks.length) {
         user.push(
           ArticleContent
-            .build({ title: '**Task** (complete following list step by step)', content: [{ ol: tasks }] })
+            .build({
+              title: '**Task** (complete following list step by step)',
+              tag: 'h1',
+
+              content: [{ ol: tasks }]
+            })
             .render()
         );
       }
 
       const tools = Object
         .entries(
-          llm.skills.length
-            ? Object.assign({}, llm.tools, { skill })
-            : llm.tools
+          Object.assign({}, llm.tools, {
+            ...(llm.skills.length && { skill }),
+            ...(vfs.size && { attachment }),
+          })
         )
         .reduce<Record<string, Tool<any, any>>>((acc, [name, compiler]) =>
           _.set(acc, name, compiler.compile(parameters.extend({ vfs, step: this }))),
@@ -301,8 +268,8 @@ export class PipelineAiStep<
       info?: string;
 
       history?: {
-        actions: (IAgentToolCall | IAgentReasoning)[];
-        provider?: ProviderMetadata;
+        actions: (PipelineAiToolAction | PipelineAiReasoningAction)[];
+        trace?: ProviderMetadata;
       }[];
     };
 
@@ -318,7 +285,9 @@ export class PipelineAiStep<
     const iteration = provided.iteration ?? 1;
     const actions = {
       sequence: cast<string[]>([]),
-      map: cast<Record<string, TAgentAction>>({}),
+      map: cast<Record<string, PipelineAiToolAction | PipelineAiReasoningAction>>({}),
+
+      trace: cast<ProviderMetadata | undefined>(undefined),
     };
 
     const info = provided.messages.info ?? ArticleContent
@@ -345,74 +314,46 @@ export class PipelineAiStep<
     ];
 
     if (provided.messages.history?.length) {
-      provided.messages.history.forEach((record) =>
+      provided.messages.history.forEach((record) => {
+        if (record.actions.every((action) => action instanceof PipelineAiReasoningAction)) {
+          return messages.push({
+            role: 'assistant',
+            providerOptions: record.trace,
+
+            content: record.actions.map((action: PipelineAiReasoningAction) => action.format()),
+          });
+        }
+
         messages.push(
           {
             role: 'assistant',
-            providerOptions: record.provider,
+            providerOptions: record.trace,
 
-            content: record.actions.map((action) => {
-              if (action.type === 'reasoning') {
-                return {
-                  type: 'reasoning',
-                  text: action.text,
-
-                  providerOptions: action.provider,
-                  id: action.id,
-                };
-              }
-
-              return {
-                type: 'tool-call',
-
-                providerOptions: action.provider,
-                toolName: action.name,
-
-                toolCallId: action.id,
-                input: action.input.value,
-              };
-            }),
+            content: record.actions.map((action) =>
+              action instanceof PipelineAiReasoningAction
+                ? action.format()
+                : action.format('call-part')
+            ),
           },
           {
             role: 'tool',
-            providerOptions: record.provider,
+            providerOptions: record.trace,
 
-            content: record.actions.filter((action) => action.type === 'tool').map((action) => ({
-              type: 'tool-result',
-
-              providerOptions: action.provider,
-              toolCallId: action.id,
-              toolName: action.name,
-
-              output: <ToolResultPart['output']>{
-                type: action.output.type === 'error' ? 'error-text' : action.output.type,
-                value: action.output.value,
-              },
-            })),
-          }
-        )
-      );
+            content: record.actions
+              .filter((action) => action instanceof PipelineAiToolAction)
+              .map((action): ToolResultPart => action.format('result-part')),
+          },
+        );
+      });
     }
 
     if (this.definition.debug) {
-      const location = `${new Date().toLocaleTimeString()}-${this.pipeline.session.id}`;
-      const title = this.trace().reverse().map((entity) => _.kebabCase(entity.title)).join('.');
-      const file = await File.build(`.pipeline/${location}/${title}.md`);
+      return useStepDebug(this, {
+        messages,
 
-      file.append([
-        `${renderDebugHeader('tools')}\n`,
-
-        ...Object
-          .entries(provided.tools ?? {})
-          .map(([name, tool]) => `# \`${name}\`\n\n${tool.description}\n\n---\n`)
-      ].join('\n'))
-
-      messages.forEach((message) =>
-        file.append([`${renderDebugHeader(message.role)}\n`, message.content].join('\n'))
-      );
-
-      await file.write(file.content.trim());
-      return provided.schema ? zocker(provided.schema).generate() : <TSchema>'DEBUG AI OUTPUT';
+        schema: provided.schema,
+        tools: provided.tools,
+      });
     }
 
     try {
@@ -446,152 +387,73 @@ export class PipelineAiStep<
         tools: provided.tools,
 
         onError: () => undefined,
+        onFinish: ({ providerMetadata }) => {
+          actions.trace = providerMetadata;
+        },
       });
 
       for await (const fragment of stream.fullStream) {
-        if (fragment.type === 'tool-call') {
-          const action: TAgentAction = {
-            type: 'tool',
-            meta: buildMetaManager(),
+        switch(fragment.type) {
+          case 'tool-call': {
+            const action = PipelineAiToolAction.build(this, fragment);
 
-            id: fragment.toolCallId,
-            name: fragment.toolName,
-            provider: fragment.providerMetadata,
+            actions.map[action.id] = action;
+            this.pipeline.session.emit('step:ai:tool', action);
 
-            input: {
-              preview: _.isObject(fragment.input) ? preview(fragment.input) : String(fragment.input),
-              value: fragment.input,
-            },
-
-            output: {
-              type: 'text',
-              value: undefined,
-            },
+            continue;
           };
 
-          actions.map[fragment.toolCallId] = action;
+          case 'tool-result': {
+            const action = actions.map[fragment.toolCallId];
 
-          this.pipeline.session.emit('step:llm:tool', {
-            step: this,
-            name: fragment.toolName,
-
-            meta: action.meta.init(),
-            message: action.input.preview,
-          });
-        }
-
-        if (fragment.type === 'tool-result') {
-          const action = actions.map[fragment.toolCallId];
-
-          if (action?.type === 'tool') {
-            if (fragment.providerMetadata) {
-              action.provider = fragment.providerMetadata;
-            }
-
-            action.output = {
-              type: _.isObject(fragment.output) ? 'json' : 'text',
-              value: fragment.output,
+            if (action instanceof PipelineAiToolAction) {
+              actions.sequence.push(action.id);
+              this.pipeline.session.emit('step:ai:tool', action.complete('DONE', fragment));
             };
 
-            actions.sequence.push(fragment.toolCallId);
-
-            this.pipeline.session.emit('step:llm:tool', {
-              step: this,
-              name: fragment.toolName,
-
-              meta: action.meta.done(),
-              message: action.input.preview,
-            });
-          }
-        }
-
-        if (fragment.type === 'tool-error') {
-          const action = actions.map[fragment.toolCallId];
-
-          if (action?.type === 'tool') {
-            if (fragment.providerMetadata) {
-              action.provider = fragment.providerMetadata;
-            }
-
-            action.output = {
-              type: 'error',
-              value: fragment.error instanceof Error ? fragment.error.message : String(fragment.error),
-            };
-
-            actions.sequence.push(fragment.toolCallId);
-
-            this.pipeline.session.emit('step:llm:tool', {
-              step: this,
-              name: fragment.toolName,
-
-              meta: action.meta.error(),
-              message: action.input.preview,
-            });
-          }
-        }
-
-        if (fragment.type === 'reasoning-start') {
-          const action: TAgentAction = {
-            type: 'reasoning',
-            meta: buildMetaManager(),
-
-            id: fragment.id,
-            provider: fragment.providerMetadata,
-
-            text: '',
+            continue;
           };
 
-          actions.map[fragment.id] = action;
+          case 'tool-error': {
+            const action = actions.map[fragment.toolCallId];
 
-          this.pipeline.session.emit('step:llm:reasoning', {
-            step: this,
+            if (action instanceof PipelineAiToolAction) {
+              actions.sequence.push(action.id);
+              this.pipeline.session.emit('step:ai:tool', action.complete('ERROR', fragment));
+            };
 
-            meta: action.meta.init(),
-            message: 'Thinking',
-          });
-        }
+            continue;
+          };
 
-        if (fragment.type === 'reasoning-delta') {
-          const action = actions.map[fragment.id];
+          case 'reasoning-start': {
+            const action = PipelineAiReasoningAction.build(this, fragment);
 
-          if (action?.type === 'reasoning') {
-            if (fragment.providerMetadata) {
-              action.provider = fragment.providerMetadata;
-            }
+            actions.map[action.id] = action;
+            this.pipeline.session.emit('step:ai:reasoning', action);
 
-            this.pipeline.session.emit('step:llm:reasoning', {
-              step: this,
+            continue;
+          };
 
-              meta: action.meta.pending(),
-              message: fragment.text,
-            });
+          case 'reasoning-delta': {
+            const action = actions.map[fragment.id];
 
-            action.text += fragment.text;
-            action.meta = buildMetaManager();
-          }
-        }
+            if (action instanceof PipelineAiReasoningAction) {
+              this.pipeline.session.emit('step:ai:reasoning', action.enrich(fragment));
+            };
 
-        if (fragment.type === 'reasoning-end') {
-          const action = actions.map[fragment.id];
+            continue;
+          };
 
-          if (action?.type === 'reasoning') {
-            if (fragment.providerMetadata) {
-              action.provider = fragment.providerMetadata;
-            }
+          case 'reasoning-end': {
+            const action = actions.map[fragment.id];
 
-            actions.sequence.push(fragment.id);
+            if (action instanceof PipelineAiReasoningAction) {
+              actions.sequence.push(action.id);
+              this.pipeline.session.emit('step:ai:reasoning', action.complete(fragment));
+            };
 
-            this.pipeline.session.emit('step:llm:reasoning', {
-              step: this,
-
-              meta: action.meta.done(),
-              message: action.text,
-            });
-          }
-        }
-
-        if (fragment.type === 'error' && fragment.error instanceof Error) {
-          throw PipelineAiError.convert({ error: fragment.error, llm: provided.llm });
+            continue;
+          };
         }
       }
 
@@ -633,7 +495,7 @@ export class PipelineAiStep<
       }
 
       if (fallback) {
-        this.pipeline.session.emit('step:llm:fallback', {
+        this.pipeline.session.emit('step:ai:fallback', {
           reason: converted,
           step: this,
 
@@ -672,8 +534,8 @@ export class PipelineAiStep<
 
           history: converted.is(['EMPTY_OUTPUT'])
             ? (provided.messages.history ?? []).concat({
-              provider: Object.values(actions.map).find((action) => action.provider)?.provider,
               actions: actions.sequence.map((id) => actions.map[id]),
+              trace: actions.trace,
             })
             : provided.messages.history,
 

@@ -27,19 +27,35 @@ export class PipelineStdout {
       `in ${meta.spent}ms`
     ),
 
-    'step:llm:tool': ({ step, meta, name, message }) => checkIsCompeted(meta.state) && this.logger.info(
-      `${step.trace().reverse().map((entity) => entity.title).join(' - ')}:`,
-      `Tool [${name}] [${meta.state}] in ${meta.spent}ms`,
-      `\n${message}`
-    ),
+    'step:ai:tool': (action) => {
+      if (!checkIsCompeted(action.meta.state)) {
+        return null;
+      }
 
-    'step:llm:reasoning': ({ step, meta, message }) => checkIsCompeted(meta.state) && this.logger.info(
-      `${step.trace().reverse().map((entity) => entity.title).join(' - ')}:`,
-      `Reasoning [${meta.state}] in ${meta.spent}ms`,
-      `\n${message}`
-    ),
+      const message = action.preview(400);
 
-    'step:llm:fallback': ({ step, providers }) => this.logger.info(
+      this.logger.info(
+        `${action.step.trace().reverse().map((entity) => entity.title).join(' - ')}:`,
+        `Tool [${action.name}] [${action.meta.state}] in ${action.meta.spent}ms`,
+        message.length ? `\n${message}` : '',
+      );
+    },
+
+    'step:ai:reasoning': (action) => {
+      if (!checkIsCompeted(action.meta.state)) {
+        return null;
+      }
+
+      const message = action.preview(400);
+
+      this.logger.info(
+        `${action.step.trace().reverse().map((entity) => entity.title).join(' - ')}:`,
+        `Reasoning [${action.meta.state}] in ${action.meta.spent}ms`,
+        message.length ? `\n${message}` : '',
+      )
+    },
+
+    'step:ai:fallback': ({ step, providers }) => this.logger.info(
       `${step.trace().reverse().map((entity) => entity.title).join(' - ')}:`,
       `Fallback from [${providers.old.model}] to [${providers.new.model}]`
     ),

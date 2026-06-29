@@ -36,13 +36,6 @@ export default LlmToolCompiler
         throw LlmToolExecutionError.build('ls', `Path "${location}" is going to out of scope the project`);
       }
 
-      if (location.startsWith('__vfs__/')) {
-        throw LlmToolExecutionError.build(
-          'ls',
-          'Cannot ls virtual file. Only `read` tool is allowed to work with this file'
-        );
-      }
-
       const entries = await fs.readdir(path.join(context.project.cwd, location), { withFileTypes: true });
       return entries.map((entry) => `${entry.name}${entry.isDirectory() ? '/' : ''}`).join('\n');
     } catch (error: unknown) {

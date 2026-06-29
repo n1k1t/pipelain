@@ -1,9 +1,10 @@
 import EventEmitter from 'events';
 
-import type { PipelineAiError } from './errors';
-import type { PipelineStep } from './steps';
+import type { PipelineAiError, PipelineAiReasoningAction, PipelineAiToolAction, PipelineStep } from './steps';
 import type { LlmProvider } from '../llm';
 import type { Pipeline } from './model';
+
+import { buildCounter } from '../../utils';
 
 export interface IPipelineSessionEventMeta {
   state: 'INIT' | 'PENDING' | 'DONE' | 'ERROR';
@@ -11,23 +12,10 @@ export interface IPipelineSessionEventMeta {
 }
 
 export interface IPipelineSessionEvents {
-  'step:llm:tool': [{
-    step: PipelineStep;
-    meta: IPipelineSessionEventMeta;
+  'step:ai:reasoning': [PipelineAiReasoningAction];
+  'step:ai:tool': [PipelineAiToolAction];
 
-    name: string;
-    message: string;
-
-  }];
-
-  'step:llm:reasoning': [{
-    message: string;
-
-    step: PipelineStep;
-    meta: IPipelineSessionEventMeta;
-  }];
-
-  'step:llm:fallback': [{
+  'step:ai:fallback': [{
     step: PipelineStep;
     reason: PipelineAiError;
 
@@ -59,9 +47,15 @@ export interface IPipelineSessionEvents {
 
 export class PipelineSession extends EventEmitter<IPipelineSessionEvents> {
   public TEvents!: IPipelineSessionEvents;
-  public id: string = Date.now().toString(32);
+
+  public timestamp: number = Date.now();
+  public id: string = this.timestamp.toString(32);
 
   public meta = {
+    counters: {
+      steps: buildCounter(),
+    },
+
     llm: {
       tokens: {
         input: 0,
@@ -71,6 +65,14 @@ export class PipelineSession extends EventEmitter<IPipelineSessionEvents> {
   };
 
   static build(): PipelineSession {
-    return new PipelineSession();
+    const session = new PipelineSession();
+
+    session.on('step:run', ({ meta }) => {
+      if (meta.state === 'INIT') {
+        session.meta.counters.steps();
+      }
+    });
+
+    return session;
   }
 }

@@ -14,6 +14,33 @@ export class LlmMcp {
     };
   }) {}
 
+  public clone(): LlmMcp {
+    return LlmMcp.build({
+      ...this.configuration,
+
+      tools: {
+        ...(this.configuration.tools?.enabled && {
+          enabled: [...this.configuration.tools.enabled],
+        }),
+
+        ...(this.configuration.tools?.disabled && {
+          disabled: [...this.configuration.tools.disabled],
+        }),
+      }
+    })
+  }
+
+  /** Clones this instance and assigns new values */
+  public assign(payload: Partial<Pick<LlmMcp['configuration'], 'tools'>>): LlmMcp {
+    const clone = this.clone();
+
+    if (payload.tools) {
+      clone.configuration.tools = payload.tools;
+    }
+
+    return clone;
+  }
+
   public async connect(): Promise<LlmMcpClient> {
     const client = await createMCPClient(this.configuration);
     return LlmMcpClient.build(client, this.configuration);
