@@ -13,7 +13,7 @@ export interface ILlmProviderConnection {
 }
 
 export interface ILlmProviderFallback {
-  /** Strategy to `continue` or `restart` a broken session with existing reasoning results and tool calls */
+  /** Strategy to `continue` or `restart` a broken session with existing reasoning results and tool calls (default `restart`) */
   strategy?: 'continue' | 'restart';
 
   /** Providers to go next */
@@ -101,11 +101,11 @@ export abstract class LlmProvider<TOptions extends object = any> {
     const provider = this.fallback.providers[0];
 
     return {
-      strategy: this.fallback.strategy,
+      strategy: this.fallback.strategy ?? 'restart',
 
       provider: provider.assign({
         fallback: provider.fallback ?? {
-          strategy: this.fallback.strategy,
+          strategy: this.fallback.strategy ?? 'restart',
           providers: this.fallback.providers.slice(1),
         },
       }),
