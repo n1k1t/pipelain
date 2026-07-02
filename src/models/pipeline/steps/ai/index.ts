@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { ModelMessage, Output, ProviderMetadata, streamText, Tool, ToolResultPart } from 'ai';
+import { APICallError, ModelMessage, Output, ProviderMetadata, streamText, Tool, ToolResultPart } from 'ai';
 import { ZodType } from 'zod/v3';
 
 import { IPipelineStepSource, PipelineStep, PipelineStepCompiler } from '../model';
@@ -451,6 +451,14 @@ export class PipelineAiStep<
               actions.sequence.push(action.id);
               this.pipeline.session.emit('step:ai:reasoning', action.complete(fragment));
             };
+
+            continue;
+          };
+
+          case 'error': {
+            if (APICallError.isInstance(fragment.error)) {
+              throw fragment.error;
+            }
 
             continue;
           };

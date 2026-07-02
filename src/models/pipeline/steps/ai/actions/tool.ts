@@ -111,10 +111,7 @@ export class PipelineAiToolAction extends PipelineAiAction {
     if (type === 'call-part') {
       return {
         type: 'tool-call',
-
-        input: this.input.type === 'json'
-          ? JSON.stringify(this.input.value)
-          : this.input.value,
+        input: this.input.value,
 
         toolCallId: this.id,
         toolName: this.name,
