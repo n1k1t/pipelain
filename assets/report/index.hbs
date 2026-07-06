@@ -79,15 +79,15 @@
             <div class="snapshot-content">
               <!-- Step Metrics -->
               <div class="step-meta">
-                <div class="step-meta-item">
-                  <span class="text-muted">Model:</span>
-                  <span class="text-mono">{{llm.name}}/{{llm.model}}</span>
+                <div class="meta-row">
+                  <span class="meta-label">Model:</span>
+                  <span class="meta-value text-mono">{{llm.name}}/{{llm.model}}</span>
                 </div>
 
                 {{#if usage}}
-                  <div class="step-meta-item">
-                    <span class="text-muted">Usage:</span>
-                    <span class="text-mono">{{usage.inputTokens}} (prompt) + {{usage.outputTokens}} (completion)</span>
+                  <div class="meta-row">
+                    <span class="meta-label">Usage:</span>
+                    <span class="meta-value text-mono">{{usage.inputTokens}} (prompt) + {{usage.outputTokens}} (completion)</span>
                   </div>
                 {{/if}}
               </div>
@@ -168,12 +168,12 @@
                         <!-- Action LLM & Details -->
                         <div class="io-title">Info</div>
                         <div class="action-meta-grid">
-                          <div>
+                          <div class="meta-row">
                             <span class="meta-label">Model:</span>
                             <span class="meta-value text-mono">{{llm.name}}/{{llm.model}}</span>
                           </div>
                           {{#if id}}
-                            <div>
+                            <div class="meta-row">
                               <span class="meta-label">Action ID:</span>
                               <span class="meta-value text-mono">{{id}}</span>
                             </div>

@@ -383,6 +383,11 @@ details[open] > summary .expand-arrow {
   border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
+.action-meta-grid .meta-row {
+  display: inline-flex;
+  align-items: center;
+}
+
 .meta-label {
   color: var(--text-muted);
   font-weight: 500;
@@ -391,6 +396,8 @@ details[open] > summary .expand-arrow {
 
 .meta-value {
   color: var(--text-primary);
+  max-width: 400px;
+  overflow: auto;
 }
 
 .span-all {
