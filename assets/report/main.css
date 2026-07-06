@@ -50,7 +50,7 @@ body {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 10px;
   margin-bottom: 24px;
 }
 
@@ -59,7 +59,7 @@ body {
   font-weight: 800;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   color: var(--text-primary);
   letter-spacing: -0.025em;
 }
@@ -73,16 +73,16 @@ body {
 .session-info {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   background: var(--card-bg);
-  padding: 16px;
+  padding: 10px 20px;
   border-radius: 8px;
   border: 1px solid var(--border);
 }
 
 .info-item {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   font-size: 14px;
 }
 
@@ -103,13 +103,13 @@ body {
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
+  gap: 10px;
 }
 
 .metric-card {
   background: var(--card-bg);
   border: 1px solid var(--border);
-  padding: 20px;
+  padding: 10px 20px;
   border-radius: 10px;
   text-align: center;
 }
@@ -138,7 +138,7 @@ body {
 .snapshots-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
 }
 
 /* Custom Accordion / Details */
@@ -157,12 +157,14 @@ details[open] {
 summary {
   display: flex;
   justify-content: space-between;
+  flex-wrap: wrap;
   align-items: center;
-  padding: 20px;
+  padding: 10px 20px;
   cursor: pointer;
   user-select: none;
   background: var(--card-bg);
   transition: background 0.15s ease-in-out;
+  list-style: none;
 }
 
 summary:hover {
@@ -173,8 +175,9 @@ summary::-webkit-details-marker {
   display: none;
 }
 
-summary {
-  list-style: none;
+summary > * {
+  margin-top: 4px;
+  margin-bottom: 4px;
 }
 
 .expand-arrow {
@@ -205,13 +208,13 @@ details[open] > summary .expand-arrow {
 .summary-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .summary-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -291,12 +294,12 @@ details[open] > summary .expand-arrow {
 
 /* Expanded snapshot content */
 .snapshot-content {
-  padding: 24px;
+  padding: 10px 20px;
   border-top: 1px solid var(--border);
   background: rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 10px;
 }
 
 .step-meta {
@@ -305,9 +308,10 @@ details[open] > summary .expand-arrow {
   gap: 12px;
   font-size: 12px;
   background: rgba(255, 255, 255, 0.02);
-  padding: 12px 16px;
+  padding: 10px 20px;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.03);
+  margin-bottom: 20px;
 }
 
 .text-muted {
@@ -318,7 +322,8 @@ details[open] > summary .expand-arrow {
 .actions-section {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
+  margin-top: 20px;
 }
 
 .actions-title {
@@ -329,7 +334,7 @@ details[open] > summary .expand-arrow {
 .actions-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .action-card {
@@ -346,7 +351,7 @@ details[open] > summary .expand-arrow {
 }
 
 .action-summary {
-  padding: 16px;
+  padding: 10px 20px;
   font-size: 14px;
 }
 
@@ -360,15 +365,16 @@ details[open] > summary .expand-arrow {
 .action-name {
   word-break: break-all;
   font-size: 12px;
+  flex-shrink: 0;
 }
 
 .action-content {
-  padding: 20px;
+  padding: 10px 20px;
   border-top: 1px solid var(--border);
   background: rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 10px;
 }
 
 /* Action meta grid */
@@ -378,9 +384,13 @@ details[open] > summary .expand-arrow {
   gap: 12px;
   font-size: 12px;
   background: rgba(255, 255, 255, 0.02);
-  padding: 12px 16px;
+  padding: 10px 20px;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.action-meta-grid:not(:last-child) {
+  margin-bottom: 20px;
 }
 
 .action-meta-grid .meta-row {
@@ -392,6 +402,7 @@ details[open] > summary .expand-arrow {
   color: var(--text-muted);
   font-weight: 500;
   margin-right: 8px;
+  flex-shrink: 0;
 }
 
 .meta-value {
@@ -404,20 +415,21 @@ details[open] > summary .expand-arrow {
   grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
 }
 
 /* IO styling */
 .action-io {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
+  margin-bottom: 20px;
 }
 
 .io-block {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .io-title {
@@ -432,7 +444,7 @@ pre {
   background: var(--code-bg);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 16px;
+  padding: 10px 20px;
   overflow-x: auto;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 12px;
@@ -451,11 +463,11 @@ code {
 .error-box {
   background: var(--color-error-bg);
   border: 1px solid var(--color-error);
-  padding: 20px;
+  padding: 10px 20px;
   border-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .error-header {
@@ -488,7 +500,7 @@ code {
 .error-output {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .error-output-type {
@@ -510,7 +522,7 @@ code {
 }
 
 .messages-summary {
-  padding: 16px;
+  padding: 10px 20px;
   font-size: 14px;
 }
 
@@ -521,12 +533,12 @@ code {
 }
 
 .messages-content {
-  padding: 20px;
+  padding: 10px 20px;
   border-top: 1px solid var(--border);
   background: rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 10px;
 }
 
 .message-block {
@@ -542,7 +554,7 @@ code {
 }
 
 .output-summary {
-  padding: 16px;
+  padding: 10px 20px;
   font-size: 14px;
 }
 
@@ -553,7 +565,7 @@ code {
 }
 
 .output-content {
-  padding: 20px;
+  padding: 10px 20px;
   border-top: 1px solid var(--border);
   background: rgba(0, 0, 0, 0.25);
 }
