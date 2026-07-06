@@ -2,6 +2,7 @@ import { ProviderMetadata, TextStreamPart, ToolCallPart, ToolResultPart } from '
 import _ from 'lodash';
 
 import type { PipelineAiStep } from '../index';
+import type { LlmProvider } from '../../../../llm';
 
 import { cast, parseJsonSafe, preview } from '../../../../../utils';
 import { PipelineAiAction } from './model';
@@ -66,6 +67,25 @@ export class PipelineAiToolActionError<
 }
 
 export class PipelineAiToolAction extends PipelineAiAction {
+  public TPlain!: {
+    type: 'ai:tool';
+    id: string;
+
+    name: string;
+    meta: PipelineAiToolAction['meta'];
+    input: TInput;
+
+    trace?: ProviderMetadata;
+    output?: TOutput;
+
+    llm: {
+      name: string;
+      model: string;
+
+      options?: object;
+    };
+  };
+
   public name: string = this.fragment.toolName;
   public id: string = this.fragment.toolCallId;
 
@@ -85,8 +105,8 @@ export class PipelineAiToolAction extends PipelineAiAction {
 
   public output?: TOutput;
 
-  constructor(public step: PipelineAiStep, public fragment: TCallFragment) {
-    super(step);
+  constructor(public step: PipelineAiStep, public llm: LlmProvider, public fragment: TCallFragment) {
+    super(step, llm);
   }
 
   /** Renders input parameters preview */
@@ -219,7 +239,28 @@ export class PipelineAiToolAction extends PipelineAiAction {
     return this.actualize(state);
   }
 
-  static build(step: PipelineAiStep, fragment: TCallFragment): PipelineAiToolAction {
-      return new PipelineAiToolAction(step, fragment);
+  public toPlain(): PipelineAiToolAction['TPlain'] {
+    return {
+      type: 'ai:tool',
+      id: this.id,
+
+      name: this.name,
+      meta: this.meta,
+      input: this.input,
+
+      trace: this.trace.final ?? this.trace.initial.providerMetadata,
+      output: this.output,
+
+      llm: {
+        name: this.llm.name,
+        model: this.llm.model,
+
+        options: this.llm.options,
+      },
+    };
+  }
+
+  static build(step: PipelineAiStep, llm: LlmProvider, fragment: TCallFragment): PipelineAiToolAction {
+      return new PipelineAiToolAction(step, llm, fragment);
     }
 }

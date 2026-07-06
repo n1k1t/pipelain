@@ -38,13 +38,19 @@ export default PipelineStdout
   .build()
   .override('log',({ pipeline, message }) =>
     console.log(
-      renderHeader(colors.gray('↩')),
+      renderHeader(colors.gray('‧')),
       ...renderTitle(pipeline),
 
       colors.gray(pipeline.title),
       colors.gray('⇢'),
 
       ...message.map((segment) => typeof segment === 'string' ? colors.white(segment) : segment)
+    )
+  )
+  .override('warning',({ message }) =>
+    console.log(
+      renderHeader(colors.yellow('‧')),
+      ...message.map((segment) => typeof segment === 'string' ? colors.yellow(segment) : segment)
     )
   )
   .override('run', ({ pipeline, meta }) => {
@@ -65,19 +71,26 @@ export default PipelineStdout
     }
 
     if (!pipeline.parent && meta.state === 'DONE') {
-      const { input, output } = pipeline.session.meta.llm.tokens;
+      const total = Object
+        .values(pipeline.session.meta.usage.llm)
+        .reduce((acc, usage) => acc + usage.prompt + usage.completion, 0);
+
+      const separated = Object
+        .entries(pipeline.session.meta.usage.llm)
+        .map(([key, usage]) => colors.gray(`${key} ⭡ ${usage.prompt} ⭣ ${usage.completion}`));
 
       return console.log(
         renderHeader(colors.yellow.bold('⚑'), meta.spent),
+
         colors.yellow.bold(pipeline.title),
         colors.gray('⇢'),
 
         colors.yellow.bold('✓ Done'),
 
-        colors.gray(`in ${input + output} tokens`),
+        colors.gray(`in ${total} tokens`),
         colors.gray('⇢'),
 
-        colors.gray(`${input} input + ${output} output`)
+        separated.join(colors.gray(' ‧‧ '))
       );
     }
   })
@@ -134,7 +147,7 @@ export default PipelineStdout
       colors.gray(action.preview())
     );
   })
-  .override('step:ai:fallback', ({ step, providers }) =>
+  .override('step:ai:fallback', ({ step, llm: providers }) =>
     console.log(
       renderHeader(colors.magenta.bold('⦸')),
       ...renderTitle(step),

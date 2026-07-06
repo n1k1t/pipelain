@@ -2,6 +2,7 @@ import { AssistantContent, ProviderMetadata, TextStreamPart } from 'ai';
 import _ from 'lodash';
 
 import type { PipelineAiStep } from '../index';
+import type { LlmProvider } from '../../../../llm';
 
 import { PipelineAiAction } from './model';
 import { cast } from '../../../../../utils';
@@ -11,6 +12,23 @@ type TDeltaFragment = Extract<TextStreamPart<any>, { type: 'reasoning-delta' }>;
 type TEndFragment = Extract<TextStreamPart<any>, { type: 'reasoning-end' }>;
 
 export class PipelineAiReasoningAction extends PipelineAiAction {
+  public TPlain!: {
+    type: 'ai:reasoning';
+    id: string;
+
+    meta: PipelineAiReasoningAction['meta'];
+    output: string;
+
+    trace?: ProviderMetadata;
+
+    llm: {
+      name: string;
+      model: string;
+
+      options?: object;
+    };
+  };
+
   public id: string = this.fragment.id;
 
   /** Execution provider metadata and options */
@@ -22,8 +40,8 @@ export class PipelineAiReasoningAction extends PipelineAiAction {
   public output: string = '';
   public delta: string = '';
 
-  constructor(public step: PipelineAiStep, public fragment: TStartFragment) {
-    super(step);
+  constructor(public step: PipelineAiStep, public llm: LlmProvider, public fragment: TStartFragment) {
+    super(step, llm);
   }
 
   /** Renders output preview */
@@ -64,10 +82,30 @@ export class PipelineAiReasoningAction extends PipelineAiAction {
       this.trace.final = fragment.providerMetadata;
     }
 
+    this.output = this.output.trim();
     return this.actualize('DONE');
   }
 
-  static build(step: PipelineAiStep, fragment: TStartFragment): PipelineAiReasoningAction {
-    return new PipelineAiReasoningAction(step, fragment);
+  public toPlain(): PipelineAiReasoningAction['TPlain'] {
+    return {
+      type: 'ai:reasoning',
+      id: this.id,
+
+      meta: this.meta,
+      output: this.output,
+
+      trace: this.trace.final ?? this.trace.initial,
+
+      llm: {
+        name: this.llm.name,
+        model: this.llm.model,
+
+        options: this.llm.options,
+      },
+    };
+  }
+
+  static build(step: PipelineAiStep, llm: LlmProvider, fragment: TStartFragment): PipelineAiReasoningAction {
+    return new PipelineAiReasoningAction(step, llm, fragment);
   }
 }

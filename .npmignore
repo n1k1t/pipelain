@@ -6,6 +6,7 @@
 
 tsconfig.json
 
+.pipelain/
 .opencode/
 .vscode/
 .husky/

@@ -10,7 +10,10 @@ const checkIsCompeted = (state: IPipelineSessionEventMeta['state']) =>
 
 export class PipelineStdout {
   private hooks: TPipelineStdoutHooks = {
-    'warning': (event) => this.logger.info(event.message),
+    'step:ai:complete': () => null,
+    'step:ai:error': () => null,
+
+    'warning': (event) => this.logger.info(...event.message),
 
     'log': ({ pipeline, message }) => this.logger.info(
       `${pipeline.trace().reverse().map((entity) => entity.title).join(' - ')}:`,
@@ -55,9 +58,9 @@ export class PipelineStdout {
       )
     },
 
-    'step:ai:fallback': ({ step, providers }) => this.logger.info(
+    'step:ai:fallback': ({ step, llm }) => this.logger.info(
       `${step.trace().reverse().map((entity) => entity.title).join(' - ')}:`,
-      `Fallback from [${providers.old.model}] to [${providers.new.model}]`
+      `Fallback from [${llm.old.model}] to [${llm.new.model}]`
     ),
   };
 

@@ -7,6 +7,7 @@ export * from './models/pipeline/factory';
 export * from './models/pipeline/session';
 export * from './models/pipeline/stdout';
 export * from './models/pipeline/errors';
+export * from './models/pipeline/report';
 export * from './models/pipeline/model';
 
 export * from './models/pipeline/steps/ai/actions';

@@ -23,15 +23,22 @@ export default {
   key: extract('PIPELAIN_API_KEY'),
   url: extract('PIPELAIN_API_URL'),
 
-
-  debug: Boolean(JSON.parse(extract('PIPELAIN_DEBUG', 'false'))),
-
   model: extract('PIPELAIN_MODEL', 'gemini-flash-latest'),
   provider: extract('PIPELAIN_PROVIDER'),
+
+  flags: {
+    report: Boolean(JSON.parse(extract('PIPELAIN_FLAGS_REPORT', 'false'))),
+    debug: Boolean(JSON.parse(extract('PIPELAIN_FLAGS_DEBUG', 'false'))),
+  },
 
   dirs: {
     skills: extract('PIPELAIN_SKILLS_DIR', path.join(process.env.HOME ?? '~', '.agents/skills')),
     tasks: extract('PIPELAIN_TASKS_DIR'),
+
+    assets: path.resolve(
+      path.resolve(__dirname, path.parse(__filename).ext === '.ts' ? '' : '../', '../'),
+      'assets'
+    ),
   },
 
   langfuse: {

@@ -2,24 +2,27 @@ import z, { ZodType } from 'zod/v3';
 
 import { IPipelineConfiguration, TPipelineCompilerConfigurationStep, TPipelineStepGeneralHandler } from './types';
 import { PipelineStep, PipelineStepCompiler, TPipelineStepNestedHandler } from './steps';
-import { buildMetaManager, cast } from '../../utils';
+import { buildMetaManager, cast, disposify } from '../../utils';
 import { PipelineParameters } from './parameters';
 import { PipelineContext } from './context';
 import { PipelineSession } from './session';
 import { PipelineStdout } from './stdout';
+import { PipelineReport } from './report';
 import { Project } from '../project';
+
+import env from '../../env';
 
 export class PipelineCompiler<TConfiguration extends IPipelineConfiguration = any> {
   public TSchema!: TConfiguration['state'];
 
   constructor(public title: string, protected definition: {
     steps: TPipelineCompilerConfigurationStep[];
+    flags: Pipeline['flags'];
 
     description?: string;
     input?: Pipeline<TConfiguration>['schema'];
 
     defaults?: PipelineContext<TConfiguration>['defaults'];
-    debug?: boolean;
   }) {}
 
   public description(content: string): this {
@@ -29,7 +32,13 @@ export class PipelineCompiler<TConfiguration extends IPipelineConfiguration = an
 
   /** Marks all nested steps to debug */
   public debug(): this {
-    this.definition.debug = true;
+    this.definition.flags.debug = true;
+    return this;
+  }
+
+  /** Makes report of pipeline ai steps execution */
+  public report(): this {
+    this.definition.flags.report = true;
     return this;
   }
 
@@ -45,7 +54,7 @@ export class PipelineCompiler<TConfiguration extends IPipelineConfiguration = an
   public clone(): PipelineCompiler<TConfiguration> {
     return new PipelineCompiler<TConfiguration>(this.title, {
       defaults: this.definition.defaults,
-      debug: this.definition.debug,
+      flags: this.definition.flags,
 
       steps: this.definition.steps,
       input: this.definition.input,
@@ -105,8 +114,6 @@ export class PipelineCompiler<TConfiguration extends IPipelineConfiguration = an
 
     session?: PipelineSession;
     parent?: Pipeline['parent'];
-
-    debug?: boolean;
   }): Promise<Pipeline<TConfiguration>> {
     const project = provided?.project ?? await Project.build();
     const session = provided?.session
@@ -117,12 +124,16 @@ export class PipelineCompiler<TConfiguration extends IPipelineConfiguration = an
           : provided.parent.pipeline.session
         : null;
 
+    const flags = provided?.parent instanceof PipelineStep
+      ? provided.parent.pipeline.flags
+      : provided?.parent?.flags;
+
     const pipeline = Pipeline.build<TConfiguration>({
       description: this.definition.description,
       title: this.title,
 
       schema: this.definition.input ?? z.undefined(),
-      debug: provided?.debug ?? this.definition.debug,
+      flags: flags ?? this.definition.flags,
 
       context: PipelineContext.build(project, this.definition.defaults),
       session: session ?? PipelineSession.build(),
@@ -141,6 +152,11 @@ export class PipelineCompiler<TConfiguration extends IPipelineConfiguration = an
   static build<TState extends object = {}>(title: string): PipelineCompiler<{ state: TState; input: void }> {
     return new PipelineCompiler(title, {
       steps: [],
+
+      flags: {
+        report: env.flags.report,
+        debug: env.flags.debug,
+      },
     });
   }
 }
@@ -149,8 +165,11 @@ export class Pipeline<TConfiguration extends IPipelineConfiguration = any> {
   public context: PipelineContext<TConfiguration> = this.provided.context;
   public session: PipelineSession = this.provided.session;
 
-  public debug: boolean = this.provided.debug ?? false;
   public title: string = this.provided.title;
+  public flags: {
+    report?: boolean;
+    debug?: boolean;
+  } = this.provided.flags;
 
   public description: string = this.provided.description ?? `Pipeline of ${this.title}`;
   public schema: ZodType<TConfiguration['input']> = this.provided.schema;
@@ -163,11 +182,10 @@ export class Pipeline<TConfiguration extends IPipelineConfiguration = any> {
 
     session: PipelineSession;
     steps: TPipelineCompilerConfigurationStep[];
+    flags: Pipeline['flags'];
 
     description?: string;
     parent?: Pipeline['parent'];
-
-    debug?: boolean;
   }) {}
 
   public async run(input: TConfiguration['input']): Promise<TConfiguration['state']> {
@@ -175,6 +193,11 @@ export class Pipeline<TConfiguration extends IPipelineConfiguration = any> {
 
     const parameters = PipelineParameters.build(this);
     const meta = buildMetaManager();
+
+    await using report = disposify({
+      entity: (this.flags.report && !this.parent) ? PipelineReport.build(this.session) : null,
+      exit: async (entity) => entity?.save(),
+    });
 
     await this.schema.parseAsync(this.context.input);
     this.session.emit('run', { pipeline: this, meta: meta.init() });
@@ -193,8 +216,6 @@ export class Pipeline<TConfiguration extends IPipelineConfiguration = any> {
 
             pipeline: this,
             parent: this,
-
-            debug: this.provided.debug,
           })
         )
         : null;
@@ -214,6 +235,13 @@ export class Pipeline<TConfiguration extends IPipelineConfiguration = any> {
       if (step.type === 'named') {
         Object.assign(this.context.state, { [step.name]: result });
       }
+    }
+
+    if (report.entity?.snapshots.length) {
+      this.session.emit('log', {
+        pipeline: this,
+        message: [`Report will be saved into [${report.entity.location}]`],
+      });
     }
 
     this.session.emit('run', { pipeline: this, meta: meta.done() });

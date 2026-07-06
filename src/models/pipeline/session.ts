@@ -1,10 +1,11 @@
+import { LanguageModelUsage } from 'ai';
 import EventEmitter from 'events';
 
 import type { PipelineAiError, PipelineAiReasoningAction, PipelineAiToolAction, PipelineStep } from './steps';
 import type { LlmProvider } from '../llm';
 import type { Pipeline } from './model';
 
-import { buildCounter } from '../../utils';
+import { buildCounter, cast } from '../../utils';
 
 export interface IPipelineSessionEventMeta {
   state: 'INIT' | 'PENDING' | 'DONE' | 'ERROR';
@@ -15,11 +16,38 @@ export interface IPipelineSessionEvents {
   'step:ai:reasoning': [PipelineAiReasoningAction];
   'step:ai:tool': [PipelineAiToolAction];
 
+  'step:ai:complete': [{
+    step: PipelineStep;
+    llm: LlmProvider;
+
+    actions: (PipelineAiToolAction | PipelineAiReasoningAction)[];
+    output: unknown;
+    usage: LanguageModelUsage;
+
+    messages: {
+      system: string;
+      user: string;
+    };
+  }];
+
+  'step:ai:error': [{
+    step: PipelineStep;
+    llm: LlmProvider;
+
+    actions: (PipelineAiToolAction | PipelineAiReasoningAction)[];
+    error: PipelineAiError;
+
+    messages: {
+      system: string;
+      user: string;
+    };
+  }];
+
   'step:ai:fallback': [{
     step: PipelineStep;
-    reason: PipelineAiError;
+    error: PipelineAiError;
 
-    providers: {
+    llm: {
       old: LlmProvider;
       new: LlmProvider;
     };
@@ -41,7 +69,7 @@ export interface IPipelineSessionEvents {
   }];
 
   'warning': [{
-    message: string;
+    message: string[];
   }];
 }
 
@@ -56,11 +84,8 @@ export class PipelineSession extends EventEmitter<IPipelineSessionEvents> {
       steps: buildCounter(),
     },
 
-    llm: {
-      tokens: {
-        input: 0,
-        output: 0,
-      },
+    usage: {
+      llm: cast<Record<string, { prompt: number; completion: number }>>({}),
     },
   };
 
@@ -71,6 +96,23 @@ export class PipelineSession extends EventEmitter<IPipelineSessionEvents> {
       if (meta.state === 'INIT') {
         session.meta.counters.steps();
       }
+    });
+
+    session.on('step:ai:complete', ({ usage, llm }) => {
+      const key = [llm.name, llm.model].join('/');
+      const section = session.meta.usage.llm[key] ?? {
+        prompt: 0,
+        completion: 0,
+      };
+
+      if (usage.inputTokens) {
+        section.prompt += usage.inputTokens;
+      }
+      if (usage.outputTokens) {
+        section.completion += usage.outputTokens;
+      }
+
+      session.meta.usage.llm[key] = section;
     });
 
     return session;

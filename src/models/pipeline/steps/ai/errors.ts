@@ -11,10 +11,12 @@ export class PipelineAiError extends Error {
   public sequence: PipelineAiError[] = this.provided.sequence ?? [];
   public reason: string = this.provided.reason ?? 'none';
 
+  public source?: Error = this.provided.source;
 
   constructor(protected provided: Pick<PipelineAiError, 'type' | 'llm'> & {
     sequence?: PipelineAiError['sequence'];
     reason?: PipelineAiError['reason'];
+    source?: PipelineAiError['source'];
   }) {
     super(`Got error [${provided.type}] while generation. Reason: ${provided.reason}`);
   }
@@ -53,34 +55,36 @@ export class PipelineAiError extends Error {
   }
 
   static convert(provided: {
-    error: unknown;
+    source: unknown;
     llm: LlmProvider;
   }): PipelineAiError {
-    if (provided.error instanceof PipelineAiError) {
-      return provided.error;
+    if (provided.source instanceof PipelineAiError) {
+      return provided.source;
     }
 
-    if (APICallError.isInstance(provided.error)) {
+    if (APICallError.isInstance(provided.source)) {
       return new PipelineAiError({
         type: 'BAD_API_CALL',
 
-        reason: provided.error.message,
+        reason: provided.source.message,
+        source: provided.source,
         llm: provided.llm,
       });
     }
-    if (NoObjectGeneratedError.isInstance(provided.error)) {
+    if (NoObjectGeneratedError.isInstance(provided.source)) {
       return new PipelineAiError({
         type: 'WRONG_RESPONSE',
 
-        reason: provided.error.message,
+        reason: provided.source.message,
+        source: provided.source,
         llm: provided.llm,
       });
     }
 
     const reason = String(
-      _.isObject(provided.error) && 'message' in provided.error
-        ? provided.error.message
-        : provided.error
+      _.isObject(provided.source) && 'message' in provided.source
+        ? provided.source.message
+        : provided.source
     );
 
     return new PipelineAiError({
@@ -88,6 +92,10 @@ export class PipelineAiError extends Error {
 
       type: 'BAD_API_CALL',
       llm: provided.llm,
+
+      ...(provided.source instanceof Error && {
+        source: provided.source,
+      }),
     });
   }
 }

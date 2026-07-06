@@ -1,10 +1,10 @@
 import _ from 'lodash';
 
-import { ModelMessage, ProviderMetadata, StreamTextResult, Tool } from 'ai';
+import { ModelMessage, Tool } from 'ai';
 import { ZodType } from 'zod/v3';
 import { zocker } from 'zocker';
 
-import type { PipelineAiReasoningAction, PipelineAiStep, PipelineAiToolAction } from './index';
+import type { PipelineAiStep } from './index';
 import { File } from '../../../file';
 
 const renderDebugHeader = (title: string): string => [
@@ -13,18 +13,17 @@ const renderDebugHeader = (title: string): string => [
   '@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@',
 ].join('\n');
 
-export const useStepDebug = async <TSchema>(step: PipelineAiStep, parameters: {
+export const compileDebug = async <TSchema>(step: PipelineAiStep, parameters: {
   messages: ModelMessage[];
 
   schema?: ZodType<TSchema>;
   tools?: Record<string, Tool>;
 }): Promise<TSchema> => {
-  const location = `${new Date(step.pipeline.session.timestamp).toLocaleTimeString()}-${step.pipeline.session.id}`;
   const title = step.trace().reverse().map((entity) => _.kebabCase(entity.title)).join('.');
-
   const file = await File.build([
-    '.pipeline',
-    location,
+    '.pipelain',
+    'debug',
+    `${new Date(step.pipeline.session.timestamp).toLocaleTimeString()}-${step.pipeline.session.id}`,
     `${step.pipeline.session.meta.counters.steps(0)}.${title}.md`,
   ]);
 

@@ -14,7 +14,7 @@ import { PipelineParameters } from '../../parameters';
 import { VirtualFileSystem } from '../../../vfs';
 import { skill, attachment } from '../../../llm';
 import { PipelineAiError } from './errors';
-import { useStepDebug } from './utils';
+import { compileDebug } from './utils';
 import { LlmProvider } from '../../../llm/providers/model';
 import { IDefinition } from './types';
 
@@ -64,7 +64,7 @@ export class PipelineAiStepCompiler<
 
     return new PipelineAiStep(this.type, {
       title: this.definition.title,
-      debug: this.definition.debug ?? provided.pipeline.debug,
+      debug: this.definition.debug ?? provided.pipeline.flags.debug,
 
       prompt: this.definition.prompt,
       schema: this.definition.schema,
@@ -262,8 +262,8 @@ export class PipelineAiStep<
     llm: LlmProvider;
 
     messages: {
-      user: string;
       system: string;
+      user: string;
 
       info?: string;
 
@@ -348,7 +348,7 @@ export class PipelineAiStep<
     }
 
     if (this.definition.debug) {
-      return useStepDebug(this, {
+      return compileDebug(this, {
         messages,
 
         schema: provided.schema,
@@ -395,7 +395,7 @@ export class PipelineAiStep<
       for await (const fragment of stream.fullStream) {
         switch(fragment.type) {
           case 'tool-call': {
-            const action = PipelineAiToolAction.build(this, fragment);
+            const action = PipelineAiToolAction.build(this, provided.llm, fragment);
 
             actions.map[action.id] = action;
             this.pipeline.session.emit('step:ai:tool', action);
@@ -426,7 +426,7 @@ export class PipelineAiStep<
           };
 
           case 'reasoning-start': {
-            const action = PipelineAiReasoningAction.build(this, fragment);
+            const action = PipelineAiReasoningAction.build(this, provided.llm, fragment);
 
             actions.map[action.id] = action;
             this.pipeline.session.emit('step:ai:reasoning', action);
@@ -470,18 +470,26 @@ export class PipelineAiStep<
         throw PipelineAiError.build({ type: 'EMPTY_OUTPUT', llm: provided.llm });
       }
 
-      const usage = await stream.usage;
+      this.pipeline.session.emit('step:ai:complete', {
+        output,
 
-      if (usage.inputTokens) {
-        this.pipeline.session.meta.llm.tokens.input += usage.inputTokens;
-      }
-      if (usage.outputTokens) {
-        this.pipeline.session.meta.llm.tokens.output += usage.outputTokens;
-      }
+        step: this,
+        llm: provided.llm,
+        usage: await stream.usage,
+
+        actions: (provided.messages.history ?? [])
+          .reduce<(PipelineAiToolAction | PipelineAiReasoningAction)[]>((acc, { actions }) => acc.concat(actions), [])
+          .concat(actions.sequence.map((id) => actions.map[id])),
+
+        messages: {
+          system: provided.messages.system,
+          user: provided.messages.user,
+        },
+      });
 
       return output;
     } catch (error: unknown) {
-      const converted = PipelineAiError.convert({ error, llm: provided.llm });
+      const converted = PipelineAiError.convert({ source: error, llm: provided.llm });
 
       if (actions.sequence.length) {
         converted.assign({ type: 'EMPTY_OUTPUT' });
@@ -498,16 +506,33 @@ export class PipelineAiStep<
         errors.local.filter((nested) => nested.is(['WRONG_RESPONSE'])).length >= 3;
 
       const fallback = enough ? provided.llm.next() : null;
+
       if (!fallback && enough) {
+        this.pipeline.session.emit('step:ai:error', {
+          step: this,
+
+          error: converted,
+          llm: provided.llm,
+
+          actions: (provided.messages.history ?? [])
+            .reduce<(PipelineAiToolAction | PipelineAiReasoningAction)[]>((acc, { actions }) => acc.concat(actions), [])
+            .concat(actions.sequence.map((id) => actions.map[id])),
+
+          messages: {
+            system: provided.messages.system,
+            user: provided.messages.user,
+          },
+        });
+
         throw converted.assign({ sequence: errors.global });
       }
 
       if (fallback) {
         this.pipeline.session.emit('step:ai:fallback', {
-          reason: converted,
           step: this,
+          error: converted,
 
-          providers: {
+          llm: {
             old: provided.llm,
             new: fallback.provider,
           },

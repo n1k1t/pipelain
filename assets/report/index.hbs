@@ -1,0 +1,245 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>PipelAIn Report</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjM2I4MmY2IiBzdHJva2Utd2lkdGg9IjIiPjxwYXRoIGQ9Ik0xMyAyTDMgMTRoOWwtMSA4IDEwLTEyaC05bDEtOHoiIC8+PC9zdmc+">
+
+  <style>
+    {{{assets.main.style}}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-main">
+        <h1 class="title">
+          <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+          </svg>
+          PipelAIn Report
+        </h1>
+        <div class="session-info">
+          <div class="info-item">
+            <span class="info-label">Session ID:</span>
+            <span class="info-value text-mono">{{session.id}}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Timestamp:</span>
+            <span class="info-value">{{formatDate session.timestamp}} {{formatTime session.timestamp}}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Overall Usage -->
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-label">Total Tokens</div>
+          <div class="metric-value">{{sum usage.llm.total.prompt usage.llm.total.completion}}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Prompt Tokens</div>
+          <div class="metric-value">{{usage.llm.total.prompt}}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Completion Tokens</div>
+          <div class="metric-value">{{usage.llm.total.completion}}</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Snapshots -->
+    <main class="snapshots-section">
+      <h2 class="section-title">Steps <span class="text-muted">({{snapshots.length}})</span></h2>
+
+      <div class="snapshots-list">
+        {{#each snapshots}}
+          <details class="snapshot-card {{#if error}}state-error{{else}}state-done{{/if}}">
+            <summary class="snapshot-summary">
+              <div class="summary-left">
+                <span class="expand-arrow">▶</span>
+                <span class="step-title">{{step.title}}</span>
+              </div>
+              <div class="summary-right">
+                <span class="llm-tag text-muted">{{llm.name}}/{{llm.model}}</span>
+                {{#if error}}
+                  <span class="badge badge-error">ERROR</span>
+                {{else}}
+                  {{#if usage.totalTokens}}
+                    <span class="usage-tag">{{usage.totalTokens}} tokens</span>
+                  {{/if}}
+                  <span class="badge badge-success">DONE</span>
+                {{/if}}
+                <span class="time-tag text-muted">{{formatTime timestamp}}</span>
+              </div>
+            </summary>
+
+            <div class="snapshot-content">
+              <!-- Step Metrics -->
+              <div class="step-meta">
+                <div class="step-meta-item">
+                  <span class="text-muted">Model:</span>
+                  <span class="text-mono">{{llm.name}}/{{llm.model}}</span>
+                </div>
+
+                {{#if usage}}
+                  <div class="step-meta-item">
+                    <span class="text-muted">Usage:</span>
+                    <span class="text-mono">{{usage.inputTokens}} (prompt) + {{usage.outputTokens}} (completion)</span>
+                  </div>
+                {{/if}}
+              </div>
+
+              {{#if error}}
+                <div class="error-box">
+                  <div class="error-header">
+                    <svg class="error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span class="error-type">{{error.type}}</span>
+                  </div>
+                  <div class="error-message">{{error.reason}}</div>
+                </div>
+              {{/if}}
+
+              <!-- Messages -->
+              <details class="messages-card">
+                <summary class="messages-summary">
+                  <div class="summary-left">
+                    <span class="expand-arrow">▶</span>
+                    <span class="messages-title">Messages</span>
+                  </div>
+                </summary>
+                <div class="messages-content">
+                  <div class="message-block">
+                    <div class="io-title">System</div>
+                    <pre><code>{{messages.system}}</code></pre>
+                  </div>
+                  <div class="message-block">
+                    <div class="io-title">User</div>
+                    <pre><code>{{messages.user}}</code></pre>
+                  </div>
+                </div>
+              </details>
+
+              {{#if output}}
+                <!-- Output -->
+                <details class="output-card">
+                  <summary class="output-summary">
+                    <div class="summary-left">
+                      <span class="expand-arrow">▶</span>
+                      <span class="output-title">Output</span>
+                    </div>
+                  </summary>
+                  <div class="output-content">
+                    <pre><code class="{{#if (isObject output)}}language-json{{/if}}">{{formatOutput output}}</code></pre>
+                  </div>
+                </details>
+              {{/if}}
+
+              <!-- Actions List -->
+              <div class="actions-section">
+                <h3 class="actions-title">Actions <span class="text-muted">({{actions.length}})</span></h3>
+                <div class="actions-list">
+                  {{#each actions}}
+                    <details class="action-card action-type-{{type}}">
+                      <summary class="action-summary">
+                        <div class="summary-left">
+                          <span class="expand-arrow">▶</span>
+                          {{#if (eq type "ai:tool")}}
+                            <span class="action-type-badge badge-tool">TOOL</span>
+                            <span class="action-name text-mono">{{name}}</span>
+                          {{else}}
+                            <span class="action-type-badge badge-reasoning">REASONING</span>
+                          {{/if}}
+                        </div>
+                        <div class="summary-right">
+                          <span class="llm-tag text-muted">{{llm.name}}/{{llm.model}}</span>
+                          <span class="badge badge-{{meta.state}}">{{meta.state}}</span>
+                          <span class="time-tag">{{formatDuration meta.spent}}</span>
+                        </div>
+                      </summary>
+
+                      <div class="action-content">
+                        <!-- Action LLM & Details -->
+                        <div class="io-title">Info</div>
+                        <div class="action-meta-grid">
+                          <div>
+                            <span class="meta-label">Model:</span>
+                            <span class="meta-value text-mono">{{llm.name}}/{{llm.model}}</span>
+                          </div>
+                          {{#if id}}
+                            <div>
+                              <span class="meta-label">Action ID:</span>
+                              <span class="meta-value text-mono">{{id}}</span>
+                            </div>
+                          {{/if}}
+                        </div>
+
+                        <!-- Tool Input/Output -->
+                        {{#if (eq type "ai:tool")}}
+                          <div class="action-io">
+                            <div class="io-block">
+                              <div class="io-title">Input ({{input.type}})</div>
+                              <pre><code class="{{#if (eq input.type "json")}}language-json{{/if}}">{{#if (eq input.type "json")}}{{json input.value}}{{else}}{{input.value}}{{/if}}</code></pre>
+                            </div>
+
+                            {{#if output}}
+                              <div class="io-block {{#if (eq output.type "error")}}io-error{{/if}}">
+                                <div class="io-title">Output ({{output.type}})</div>
+                                {{#if (eq output.type "error")}}
+                                  <div class="error-output">
+                                    <pre><code>{{#if (eq output.value.type "json")}}{{json output.value.payload}}{{else}}{{output.value.payload}}{{/if}}</code></pre>
+                                  </div>
+                                {{else}}
+                                  <pre><code class="{{#if (eq output.type "json")}}language-json{{/if}}">{{#if (eq output.type "json")}}{{json output.value}}{{else}}{{output.value}}{{/if}}</code></pre>
+                                {{/if}}
+                              </div>
+                            {{/if}}
+                          </div>
+                        {{else}}
+                          <!-- Reasoning Output -->
+                          <div class="action-io">
+                            <div class="io-block">
+                              <div class="io-title">Reasoning Output</div>
+                              <pre class="reasoning-output"><code>{{output}}</code></pre>
+                            </div>
+                          </div>
+                        {{/if}}
+
+                        <div class="io-title">Provider</div>
+                        <div class="action-meta-grid">
+                          {{#if llm.options}}
+                            <div class="span-all">
+                              <span class="meta-label">Options:</span>
+                              <pre><code class="language-json">{{json llm.options}}</code></pre>
+                            </div>
+                          {{/if}}
+                          {{#if trace}}
+                            <div class="span-all">
+                              <span class="meta-label">Trace Metadata:</span>
+                              <pre><code class="language-json">{{json trace}}</code></pre>
+                            </div>
+                          {{/if}}
+                        </div>
+                      </div>
+                    </details>
+                  {{/each}}
+                </div>
+              </div>
+            </div>
+          </details>
+        {{/each}}
+      </div>
+    </main>
+  </div>
+
+  <script>
+    {{{assets.main.script}}}
+  </script>
+</body>
+</html>
