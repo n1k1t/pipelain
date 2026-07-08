@@ -23,9 +23,17 @@ type TContentKind<K extends TContentType> = {
 export class ContentFactory {
   constructor(protected project?: Project) {}
 
+  public article(parameters: kinds.ArticleContent['TSchema']): kinds.ArticleContent;
+  public article(title: string, content: IJsonContent[]): kinds.ArticleContent;
+
   /** Creates `## Article` with nested content */
-  public article(title: string, content: IJsonContent[]): kinds.ArticleContent {
-    return kinds.ArticleContent.build({ title, content });
+  public article(
+    titleOrParameters: string | kinds.ArticleContent['TSchema'],
+    content?: IJsonContent[]
+  ): kinds.ArticleContent {
+    return typeof titleOrParameters === 'string'
+      ? kinds.ArticleContent.build({ title: titleOrParameters, content: content ?? [] })
+      : kinds.ArticleContent.build(titleOrParameters);
   }
 
   /** Creates rules list */

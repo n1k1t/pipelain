@@ -105,7 +105,7 @@ export class PipelineReport {
       error: event.error,
 
       step: {
-        title: event.step.trace().reverse().join(' | '),
+        title: event.step.trace().reverse().map((entity) => entity.title).join(' | '),
       },
 
       llm: {
