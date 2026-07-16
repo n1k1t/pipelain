@@ -114,7 +114,7 @@ export default PipelineStdout
     );
   })
   .override('step:ai:reasoning', (action) => {
-    if (action.meta.state !== 'DONE') {
+    if (action.meta.state !== 'DONE' || !action.output.length) {
       return null;
     }
 

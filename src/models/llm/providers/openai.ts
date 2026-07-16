@@ -43,7 +43,7 @@ export class LlmOpenaiProvider extends LlmProvider<OpenAIChatLanguageModelOption
       ...parameters,
 
       options: parameters.options ?? {
-        reasoningEffort: 'low',
+        reasoningEffort: 'medium',
       },
     });
   }

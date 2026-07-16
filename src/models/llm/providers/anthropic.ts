@@ -45,7 +45,7 @@ export class LlmAnthropicProvider extends LlmProvider<AnthropicLanguageModelOpti
       options: parameters.options ?? {
         thinking: {
           type: 'enabled',
-          budgetTokens: 1024,
+          budgetTokens: 2048,
         },
       },
     });

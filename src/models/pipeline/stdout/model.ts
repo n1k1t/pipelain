@@ -5,7 +5,7 @@ type TPipelineStdoutHooks = {
   [K in keyof PipelineSession['TEvents']]: TFunction<unknown, PipelineSession['TEvents'][K]>;
 };
 
-const checkIsCompeted = (state: IPipelineSessionEventMeta['state']) =>
+const checkIsCompleted = (state: IPipelineSessionEventMeta['state']) =>
   state === 'DONE' || state === 'ERROR';
 
 export class PipelineStdout {
@@ -20,18 +20,18 @@ export class PipelineStdout {
       ...message,
     ),
 
-    'run': ({ pipeline, meta }) => checkIsCompeted(meta.state) && this.logger.info(
+    'run': ({ pipeline, meta }) => checkIsCompleted(meta.state) && this.logger.info(
       `${pipeline.trace().reverse().map((entity) => entity.title).join(' - ')}: [${meta.state}]`,
       `in ${meta.spent}ms`
     ),
 
-    'step:run': ({ step, meta }) => checkIsCompeted(meta.state) && this.logger.info(
+    'step:run': ({ step, meta }) => checkIsCompleted(meta.state) && this.logger.info(
       `${step.trace().reverse().map((entity) => entity.title).join(' - ')}: [${meta.state}]`,
       `in ${meta.spent}ms`
     ),
 
     'step:ai:tool': (action) => {
-      if (!checkIsCompeted(action.meta.state)) {
+      if (!checkIsCompleted(action.meta.state)) {
         return null;
       }
 
@@ -45,7 +45,7 @@ export class PipelineStdout {
     },
 
     'step:ai:reasoning': (action) => {
-      if (!checkIsCompeted(action.meta.state)) {
+      if (!checkIsCompleted(action.meta.state) || !action.output.length) {
         return null;
       }
 

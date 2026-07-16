@@ -132,6 +132,7 @@ it('should log step:llm:reasoning event when state is not INIT', () => {
   handler({
     step: { trace: () => [{ title: 'S' }] },
     meta: { state: 'DONE', spent: 40 },
+    output: 'reasoning',
     preview: () => 'reason-msg',
   });
   expect(logger.info).toHaveBeenCalledWith('S:', 'Reasoning [DONE] in 40ms', '\nreason-msg');

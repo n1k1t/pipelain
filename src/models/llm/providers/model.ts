@@ -24,9 +24,6 @@ export abstract class LlmProvider<TOptions extends object = any> {
   public abstract name: string;
   public abstract tag: LanguageModel;
 
-  /** Model temperature `0.1 default` */
-  public temperature: number = this.provided.temperature ?? 0.1;
-
   /** Model agent steps count limit `30 default` */
   public limit: number = this.provided.limit ?? 30;
 
@@ -47,6 +44,9 @@ export abstract class LlmProvider<TOptions extends object = any> {
 
   /** Provider fallback to switch if something goes wrong */
   public fallback?: ILlmProviderFallback = this.provided.fallback;
+
+  /** Model temperature */
+  public temperature?: number = this.provided.temperature;
 
   constructor(public model: string, protected provided: Pick<LlmProvider<TOptions>, 'connection' | 'options'> & {
     temperature?: number;
