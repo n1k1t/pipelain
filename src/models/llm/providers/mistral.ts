@@ -16,6 +16,7 @@ export class LlmMistralProvider extends LlmProvider<MistralLanguageModelOptions>
     const clone = LlmMistralProvider.build(this.model, {
       temperature: this.temperature,
       connection: this.connection,
+      reasoning: this.reasoning,
       limit: this.limit,
 
       options: Object.assign({}, this.options),

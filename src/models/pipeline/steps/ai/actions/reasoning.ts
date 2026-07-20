@@ -19,12 +19,13 @@ export class PipelineAiReasoningAction extends PipelineAiAction {
     meta: PipelineAiReasoningAction['meta'];
     output: string;
 
-    trace?: ProviderMetadata;
+    trace?: object;
 
     llm: {
       name: string;
       model: string;
 
+      parameters: Pick<LlmProvider, 'reasoning' | 'temperature'>;
       options?: object;
     };
   };
@@ -33,8 +34,8 @@ export class PipelineAiReasoningAction extends PipelineAiAction {
 
   /** Execution provider metadata and options */
   public trace = {
-    initial: cast<TStartFragment['providerMetadata']>(this.fragment.providerMetadata),
-    final: cast<TEndFragment['providerMetadata']>(undefined),
+    initial: cast<object | undefined>(this.fragment.providerMetadata),
+    final: cast<object | undefined>(undefined),
   };
 
   public output: string = '';
@@ -49,7 +50,7 @@ export class PipelineAiReasoningAction extends PipelineAiAction {
     return _.truncate(this.output, { length: limit }).replace(/\n/g, '↩ ');
   }
 
-  public provide(kind: 'initial' | 'final'): ProviderMetadata | null {
+  public provide(kind: 'initial' | 'final'): object | null {
     return (
       kind === 'initial'
         ? this.trace.initial
@@ -62,7 +63,7 @@ export class PipelineAiReasoningAction extends PipelineAiAction {
       type: 'reasoning',
 
       text: this.output,
-      providerOptions: this.trace.final ?? this.trace.initial,
+      providerOptions: <ProviderMetadata>(this.trace.final ?? this.trace.initial),
     };
   }
 
@@ -101,6 +102,10 @@ export class PipelineAiReasoningAction extends PipelineAiAction {
         model: this.llm.model,
 
         options: this.llm.options,
+        parameters: {
+          temperature: this.llm.temperature,
+          reasoning: this.llm.reasoning,
+        },
       },
     };
   }

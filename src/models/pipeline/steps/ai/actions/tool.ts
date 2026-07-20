@@ -75,13 +75,14 @@ export class PipelineAiToolAction extends PipelineAiAction {
     meta: PipelineAiToolAction['meta'];
     input: TInput;
 
-    trace?: ProviderMetadata;
+    trace?: object;
     output?: TOutput;
 
     llm: {
       name: string;
       model: string;
 
+      parameters: Pick<LlmProvider, 'reasoning' | 'temperature'>;
       options?: object;
     };
   };
@@ -96,7 +97,7 @@ export class PipelineAiToolAction extends PipelineAiAction {
       providerExecuted: this.fragment.providerExecuted,
     }),
 
-    final: cast<ProviderMetadata | undefined>(undefined),
+    final: cast<object | undefined>(undefined),
   };
 
   public input: TInput = _.isObject(this.fragment.input)
@@ -116,7 +117,7 @@ export class PipelineAiToolAction extends PipelineAiAction {
       : preview(this.input.value, limit);
   }
 
-  public provide(kind: 'initial' | 'final'): ProviderMetadata | null {
+  public provide(kind: 'initial' | 'final'): object | null {
     return (
       kind === 'initial'
         ? this.trace.initial.providerMetadata
@@ -147,7 +148,7 @@ export class PipelineAiToolAction extends PipelineAiAction {
       toolCallId: this.id,
       toolName: this.name,
 
-      providerOptions: this.trace.final ?? this.trace.initial.providerMetadata,
+      providerOptions: <ProviderMetadata>(this.trace.final ?? this.trace.initial.providerMetadata),
     };
 
     if (!this.output) {
@@ -156,7 +157,7 @@ export class PipelineAiToolAction extends PipelineAiAction {
           type: 'text',
           value: 'Empty',
 
-          providerOptions: this.trace.final ?? this.trace.initial.providerMetadata,
+          providerOptions: <ProviderMetadata>(this.trace.final ?? this.trace.initial.providerMetadata),
         }),
       });
     }
@@ -167,7 +168,7 @@ export class PipelineAiToolAction extends PipelineAiAction {
           type: 'json',
           value: JSON.stringify(this.output.value),
 
-          providerOptions: this.trace.final ?? this.trace.initial.providerMetadata,
+          providerOptions: <ProviderMetadata>(this.trace.final ?? this.trace.initial.providerMetadata),
         }),
       });
     }
@@ -178,7 +179,7 @@ export class PipelineAiToolAction extends PipelineAiAction {
           type: 'text',
           value: this.output.value,
 
-          providerOptions: this.trace.final ?? this.trace.initial.providerMetadata,
+          providerOptions: <ProviderMetadata>(this.trace.final ?? this.trace.initial.providerMetadata),
         }),
       });
     }
@@ -189,7 +190,7 @@ export class PipelineAiToolAction extends PipelineAiAction {
           type: 'error-json',
           value: JSON.stringify(this.output.value.payload),
 
-          providerOptions: this.trace.final ?? this.trace.initial.providerMetadata,
+          providerOptions: <ProviderMetadata>(this.trace.final ?? this.trace.initial.providerMetadata),
         }),
       });
     }
@@ -199,7 +200,7 @@ export class PipelineAiToolAction extends PipelineAiAction {
         type: 'error-text',
         value: String(this.output.value.payload),
 
-        providerOptions: this.trace.final ?? this.trace.initial.providerMetadata,
+        providerOptions: <ProviderMetadata>(this.trace.final ?? this.trace.initial.providerMetadata),
       }),
     });
   }
@@ -256,6 +257,10 @@ export class PipelineAiToolAction extends PipelineAiAction {
         model: this.llm.model,
 
         options: this.llm.options,
+        parameters: {
+          temperature: this.llm.temperature,
+          reasoning: this.llm.reasoning,
+        }
       },
     };
   }

@@ -18,7 +18,7 @@ export abstract class PipelineAiAction {
   constructor(public step: PipelineAiStep, public llm: LlmProvider) {}
 
   /** Provides model metadata */
-  public abstract provide(kind: 'initial' | 'final'): ProviderMetadata | null;
+  public abstract provide(kind: 'initial' | 'final'): object | null;
   public abstract toPlain(): object;
 
   public actualize(state: IPipelineSessionEventMeta['state']): this {

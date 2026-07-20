@@ -16,6 +16,7 @@ export class LlmGoogleProvider extends LlmProvider<GoogleLanguageModelOptions> {
     const clone = LlmGoogleProvider.build(this.model, {
       temperature: this.temperature,
       connection: this.connection,
+      reasoning: this.reasoning,
       limit: this.limit,
 
       options: Object.assign({}, this.options),
@@ -39,15 +40,6 @@ export class LlmGoogleProvider extends LlmProvider<GoogleLanguageModelOptions> {
     model: string,
     parameters: SetPartialKeys<LlmGoogleProvider['provided'], 'options'>
   ): LlmGoogleProvider {
-    return new LlmGoogleProvider(model, {
-      ...parameters,
-
-      options: parameters.options ?? {
-        thinkingConfig: {
-          thinkingBudget: 2048,
-          includeThoughts: true,
-        },
-      },
-    });
+    return new LlmGoogleProvider(model, { ...parameters, options: parameters.options ?? {} });
   }
 }

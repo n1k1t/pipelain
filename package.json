@@ -9,6 +9,7 @@
     "test:coverage": "NODE_ENV=test jest --coverage",
     "start:dev:main": "npx ts-node -r ./src/opentelemetry.ts test/index.ts",
     "start:dev:skill": "npx ts-node -r ./src/opentelemetry.ts test/skill.ts",
+    "start:dev:report": "npx ts-node -r ./src/opentelemetry.ts test/report.ts",
     "build": "rm -rf lib && npx tsc",
     "build:check": "npx tsc --noEmit",
     "prepare": "husky",
@@ -34,11 +35,15 @@
       "jest-extended/all"
     ],
     "setupFiles": [],
+    "transformIgnorePatterns": [],
     "transform": {
-      ".+\\.ts?$": [
+      ".+\\.[tj]sx?$": [
         "ts-jest",
         {
-          "isolatedModules": true
+          "isolatedModules": true,
+          "tsconfig": {
+            "allowJs": true
+          }
         }
       ]
     }
@@ -84,16 +89,17 @@
     "typescript": "5.7.2"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "3.0.48",
-    "@ai-sdk/google": "3.0.33",
-    "@ai-sdk/mcp": "1.0.43",
-    "@ai-sdk/mistral": "3.0.20",
-    "@ai-sdk/openai": "3.0.36",
-    "@ai-sdk/openai-compatible": "2.0.47",
+    "@ai-sdk/anthropic": "4.0.16",
+    "@ai-sdk/google": "4.0.18",
+    "@ai-sdk/mcp": "2.0.15",
+    "@ai-sdk/mistral": "4.0.13",
+    "@ai-sdk/openai": "4.0.16",
+    "@ai-sdk/openai-compatible": "3.0.12",
     "@ast-grep/napi": "0.42.0",
-    "ai": "6.0.103",
+    "ai": "7.0.31",
     "colors": "1.4.0",
     "commander": "9.4.0",
+    "dayjs": "1.11.21",
     "dotenv": "16.4.7",
     "fast-glob": "3.3.3",
     "fast-xml-parser": "4.5.0",

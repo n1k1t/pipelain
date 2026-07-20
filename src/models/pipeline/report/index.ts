@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import path from 'path';
 import hbs from 'handlebars';
 import fs from 'fs/promises';
@@ -15,7 +16,7 @@ export class PipelineReport {
   public location: string = path.join(
     '.pipelain',
     'reports',
-    `${new Date(this.session.timestamp).toLocaleTimeString()}-${this.session.id}.html`
+    `${dayjs(this.session.timestamp).format('YYYY-MM-DD--HH-mm-ss')}--${this.session.id}.html`
   );
 
   constructor(public session: PipelineSession) {}
@@ -92,6 +93,12 @@ export class PipelineReport {
       llm: {
         name: event.llm.name,
         model: event.llm.model,
+
+        parameters: {
+          limit: event.llm.limit,
+          reasoning: event.llm.reasoning,
+          temperature: event.llm.temperature,
+        },
       },
     }));
 
@@ -111,6 +118,12 @@ export class PipelineReport {
       llm: {
         name: event.llm.name,
         model: event.llm.model,
+
+        parameters: {
+          limit: event.llm.limit,
+          reasoning: event.llm.reasoning,
+          temperature: event.llm.temperature,
+        },
       },
     }));
 

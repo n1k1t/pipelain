@@ -16,6 +16,7 @@ export class LlmOpenaiProvider extends LlmProvider<OpenAIChatLanguageModelOption
     const clone = LlmOpenaiProvider.build(this.model, {
       temperature: this.temperature,
       connection: this.connection,
+      reasoning: this.reasoning,
       limit: this.limit,
 
       options: Object.assign({}, this.options),
@@ -39,12 +40,6 @@ export class LlmOpenaiProvider extends LlmProvider<OpenAIChatLanguageModelOption
     model: string,
     parameters: SetPartialKeys<LlmOpenaiProvider['provided'], 'options'>
   ): LlmOpenaiProvider {
-    return new LlmOpenaiProvider(model, {
-      ...parameters,
-
-      options: parameters.options ?? {
-        reasoningEffort: 'medium',
-      },
-    });
+    return new LlmOpenaiProvider(model, { ...parameters, options: parameters.options ?? {} });
   }
 }

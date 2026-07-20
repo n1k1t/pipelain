@@ -141,6 +141,20 @@
                 </details>
               {{/if}}
 
+              {{#if llm.parameters}}
+                <details class="parameters-card">
+                  <summary class="parameters-summary">
+                    <div class="summary-left">
+                      <span class="expand-arrow">▶</span>
+                      <span class="parameters-title">Parameters</span>
+                    </div>
+                  </summary>
+                  <div class="parameters-content">
+                    <pre><code class="language-json">{{json llm.parameters}}</code></pre>
+                  </div>
+                </details>
+              {{/if}}
+
               <!-- Actions List -->
               <div class="actions-section">
                 <h3 class="actions-title">Actions <span class="text-muted">({{actions.length}})</span></h3>
@@ -213,6 +227,12 @@
 
                         <div class="io-title">Provider</div>
                         <div class="action-meta-grid">
+                          {{#if llm.parameters}}
+                            <div class="span-all">
+                              <span class="meta-label">Parameters:</span>
+                              <pre><code class="language-json">{{json llm.parameters}}</code></pre>
+                            </div>
+                          {{/if}}
                           {{#if llm.options}}
                             <div class="span-all">
                               <span class="meta-label">Options:</span>

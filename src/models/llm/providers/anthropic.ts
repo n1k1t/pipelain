@@ -16,6 +16,7 @@ export class LlmAnthropicProvider extends LlmProvider<AnthropicLanguageModelOpti
     const clone = LlmAnthropicProvider.build(this.model, {
       temperature: this.temperature,
       connection: this.connection,
+      reasoning: this.reasoning,
       limit: this.limit,
 
       options: Object.assign({}, this.options),
@@ -39,15 +40,6 @@ export class LlmAnthropicProvider extends LlmProvider<AnthropicLanguageModelOpti
     model: string,
     parameters: SetPartialKeys<LlmAnthropicProvider['provided'], 'options'>
   ): LlmAnthropicProvider {
-    return new LlmAnthropicProvider(model, {
-      ...parameters,
-
-      options: parameters.options ?? {
-        thinking: {
-          type: 'enabled',
-          budgetTokens: 2048,
-        },
-      },
-    });
+    return new LlmAnthropicProvider(model, { ...parameters, options: parameters.options ?? {} });
   }
 }

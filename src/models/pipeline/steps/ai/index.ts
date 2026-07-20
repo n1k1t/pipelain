@@ -1,7 +1,16 @@
 import _ from 'lodash';
 
-import { APICallError, ModelMessage, Output, ProviderMetadata, streamText, Tool, ToolResultPart } from 'ai';
 import { ZodType } from 'zod/v3';
+import {
+  APICallError,
+  InvalidPromptError,
+  ModelMessage,
+  Output,
+  ProviderMetadata,
+  streamText,
+  Tool,
+  ToolResultPart,
+} from 'ai';
 
 import { IPipelineStepSource, PipelineStep, PipelineStepCompiler } from '../model';
 import { IPipelineConfiguration, TPipelineContentPredicate } from '../../types';
@@ -302,16 +311,10 @@ export class PipelineAiStep<
       })
       .render();
 
-    const messages: ModelMessage[] = [
-      {
-        role: 'system',
-        content: [info, provided.messages.system].join('\n\n'),
-      },
-      {
-        role: 'user',
-        content: provided.messages.user,
-      },
-    ];
+    const messages: ModelMessage[] = [{
+      role: 'user',
+      content: provided.messages.user,
+    }];
 
     if (provided.messages.history?.length) {
       provided.messages.history.forEach((record) => {
@@ -360,21 +363,13 @@ export class PipelineAiStep<
       const stream = streamText({
         messages,
 
-        experimental_telemetry: {
-          isEnabled: true,
-          functionId: this.title,
-
-          metadata: {
-            sessionId: this.pipeline.session.id,
-          },
-        },
-
         ...(provided.schema && {
           output: Output.object({
             schema: provided.schema,
           }),
         }),
 
+        instructions: [info, provided.messages.system].join('\n\n'),
         providerOptions: {
           [provided.llm.name]: provided.llm.options,
         },
@@ -383,12 +378,18 @@ export class PipelineAiStep<
         maxRetries: 0,
 
         temperature: provided.llm.temperature,
+        reasoning: provided.llm.reasoning,
         model: provided.llm.tag,
         tools: provided.tools,
 
+        experimental_telemetry: {
+          isEnabled: true,
+          functionId: this.title,
+        },
+
         onError: () => undefined,
-        onFinish: ({ providerMetadata }) => {
-          actions.trace = providerMetadata;
+        onFinish: ({ finalStep }) => {
+          actions.trace = finalStep.providerMetadata;
         },
       });
 
@@ -456,6 +457,9 @@ export class PipelineAiStep<
           };
 
           case 'error': {
+            if (InvalidPromptError.isInstance(fragment.error)) {
+              throw fragment.error;
+            }
             if (APICallError.isInstance(fragment.error)) {
               throw fragment.error;
             }

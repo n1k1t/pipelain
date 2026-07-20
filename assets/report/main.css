@@ -569,3 +569,20 @@ code {
   border-top: 1px solid var(--border);
   background: rgba(0, 0, 0, 0.25);
 }
+
+.parameters-summary {
+  padding: 10px 20px;
+  font-size: 14px;
+}
+
+.parameters-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.parameters-content {
+  padding: 10px 20px;
+  border-top: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.25);
+}

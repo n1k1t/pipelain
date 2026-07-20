@@ -4,6 +4,8 @@ import { LlmToolCompiler } from '../tools/model';
 import { ILlmSkill } from '../types';
 import { LlmMcp } from '../mcp';
 
+export type TLlmProviderReasoning = 'provider-default' | 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+
 export interface ILlmProviderConnection {
   /** Provider API key */
   key: string;
@@ -48,10 +50,14 @@ export abstract class LlmProvider<TOptions extends object = any> {
   /** Model temperature */
   public temperature?: number = this.provided.temperature;
 
+  /** Model reasoning mode */
+  public reasoning?: TLlmProviderReasoning = this.provided.reasoning;
+
   constructor(public model: string, protected provided: Pick<LlmProvider<TOptions>, 'connection' | 'options'> & {
     temperature?: number;
     limit?: number;
 
+    reasoning?: LlmProvider<TOptions>['reasoning'];
     fallback?: LlmProvider<TOptions>['fallback'];
     skills?: LlmProvider<TOptions>['skills'];
     tools?: LlmProvider<TOptions>['tools'];
@@ -84,6 +90,9 @@ export abstract class LlmProvider<TOptions extends object = any> {
     }
     if (payload.limit) {
       clone.limit = payload.limit;
+    }
+    if (payload.reasoning) {
+      clone.reasoning = payload.reasoning;
     }
 
     return clone;

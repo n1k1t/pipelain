@@ -2,6 +2,7 @@ import type { LanguageModelUsage } from 'ai';
 
 import type { PipelineAiError, PipelineAiReasoningAction, PipelineAiToolAction } from '../steps';
 import type { PipelineSession } from '../session';
+import type { LlmProvider } from '../../llm';
 
 interface TPipelineReportSnapshotStep {
   title: string;
@@ -10,6 +11,8 @@ interface TPipelineReportSnapshotStep {
 export interface TPipelineReportSnapshotLlm {
   name: string;
   model: string;
+
+  parameters: Pick<LlmProvider, 'limit' | 'reasoning' | 'temperature'>;
 }
 
 export interface TPipelineReportSnapshotMessages {

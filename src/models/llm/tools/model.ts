@@ -44,7 +44,8 @@ export class LlmToolCompiler<TSchema extends {
   public TOptions!: TSchema['options'];
   public TExecutor!: (parameters: ILlmToolParameters<TSchema['options']>) => ToolExecuteFunction<
     TSchema['input'],
-    TSchema['output']
+    TSchema['output'],
+    object
   >;
 
   constructor(public description: string, protected provided: {
@@ -92,8 +93,14 @@ export class LlmToolCompiler<TSchema extends {
     if (!this.provided.executor) {
       throw new LlmToolCompilationError('executor');
     }
+    if (!this.provided.schema.input) {
+      throw new LlmToolCompilationError('schema.input');
+    }
 
-    return tool(<Tool>{
+    return tool({
+      type: 'function',
+
+      inputSchema: this.provided.schema.input,
       description: this.description,
 
       execute: this.provided.executor(
@@ -104,8 +111,9 @@ export class LlmToolCompiler<TSchema extends {
         })
       ),
 
-      inputSchema: this.provided.schema.input,
-      outputSchema: this.provided.schema.output,
+      ...(this.provided.schema.output && {
+        outputSchema: this.provided.schema.output,
+      }),
     });
   }
 
