@@ -1,5 +1,6 @@
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { LanguageModel } from 'ai';
+import { createOpenAI } from '@ai-sdk/openai';
 
 import { SetPartialKeys } from '../../../../types';
 import { LlmProvider } from './model';
@@ -7,15 +8,24 @@ import { LlmProvider } from './model';
 export class LlmProxyProvider extends LlmProvider<object> {
   public name: string = 'proxy';
 
-  public tag: LanguageModel = createOpenAICompatible({
-    name: this.name,
+  public tag: LanguageModel = (() => {
+    if (this.model.includes('gpt')) {
+      return createOpenAI({
+        apiKey: this.connection.key,
+        baseURL: this.connection.url,
+      })(this.model);
+    }
 
-    apiKey: this.connection.key,
-    baseURL: this.connection.url ?? 'none',
+    return createOpenAICompatible({
+      name: this.name,
 
-    includeUsage: true,
-    supportsStructuredOutputs: true,
-  })(this.model);
+      apiKey: this.connection.key,
+      baseURL: this.connection.url ?? 'none',
+
+      includeUsage: true,
+      supportsStructuredOutputs: true,
+    })(this.model);
+  })();
 
   public clone(): this {
     const clone = LlmProxyProvider.build(this.model, {

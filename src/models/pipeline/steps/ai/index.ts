@@ -393,7 +393,7 @@ export class PipelineAiStep<
         },
       });
 
-      for await (const fragment of stream.fullStream) {
+      for await (const fragment of stream.stream) {
         switch(fragment.type) {
           case 'tool-call': {
             const action = PipelineAiToolAction.build(this, provided.llm, fragment);
