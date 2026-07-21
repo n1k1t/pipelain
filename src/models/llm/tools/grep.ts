@@ -50,7 +50,7 @@ export default LlmToolCompiler
         }
       }
 
-      const rg = Rg.build();
+      const rg = Rg.build({ cwd: context.project.cwd });
       const results = await rg.exec(pattern, {
         path: location,
         limit: 50,

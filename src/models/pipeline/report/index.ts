@@ -31,7 +31,15 @@ export class PipelineReport {
     const template = await fs.readFile(path.join(assets, 'index.hbs'), 'utf8');
 
     return hbs.compile(template)(cast<IPipelineReportTemplateData>({
-      snapshots: this.snapshots,
+      snapshots: this.snapshots.map((snapshot) => {
+        snapshot.actions = snapshot.actions.filter((action) => {
+          action.type === 'ai:reasoning' && !action.output.length
+            ? false
+            : true
+        });
+
+        return snapshot;
+      }),
 
       usage: {
         llm: {

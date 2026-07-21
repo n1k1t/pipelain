@@ -8,6 +8,7 @@
     "test": "NODE_ENV=test jest --silent",
     "test:coverage": "NODE_ENV=test jest --coverage",
     "start:dev:main": "npx ts-node -r ./src/opentelemetry.ts test/index.ts",
+    "start:dev:tool": "npx ts-node -r ./src/opentelemetry.ts test/tool.ts",
     "start:dev:skill": "npx ts-node -r ./src/opentelemetry.ts test/skill.ts",
     "start:dev:report": "npx ts-node -r ./src/opentelemetry.ts test/report.ts",
     "build": "rm -rf lib && npx tsc",

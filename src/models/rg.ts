@@ -74,13 +74,13 @@ export class Rg {
 
     if (options?.include) {
       for (const pattern of options.include) {
-        args.push(`--glob='${pattern}'`);
+        args.push(`--glob=${pattern}`);
       }
     }
 
     if (options?.exclude) {
       for (const pattern of options.exclude.concat('.git/**')) {
-        args.push(`--glob=!'${pattern}'`);
+        args.push(`--glob=!${pattern}`);
       }
     }
 

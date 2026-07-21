@@ -11,9 +11,9 @@ export default LlmToolCompiler
     })
   )
   .output(z.string().describe('Command output'))
-  .execute(() => async ({ command }) => {
+  .execute(({ context }) => async ({ command }) => {
     try {
-      const bash = Bash.build({ argv0: 'npm' });
+      const bash = Bash.build({ argv0: 'npm', cwd: context.project.cwd });
       const result = await bash.exec(command);
 
       if (result.status === 'ERROR') {
