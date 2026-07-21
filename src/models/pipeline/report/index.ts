@@ -32,11 +32,11 @@ export class PipelineReport {
 
     return hbs.compile(template)(cast<IPipelineReportTemplateData>({
       snapshots: this.snapshots.map((snapshot) => {
-        snapshot.actions = snapshot.actions.filter((action) => {
+        snapshot.actions = snapshot.actions.filter((action) =>
           action.type === 'ai:reasoning' && !action.output.length
             ? false
             : true
-        });
+        );
 
         return snapshot;
       }),
