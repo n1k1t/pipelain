@@ -311,6 +311,7 @@ export class PipelineAiStep<
       })
       .render();
 
+    const instructions = [info, provided.messages.system].join('\n\n');
     const messages: ModelMessage[] = [{
       role: 'user',
       content: provided.messages.user,
@@ -352,7 +353,10 @@ export class PipelineAiStep<
 
     if (this.definition.debug) {
       return compileDebug(this, {
-        messages,
+        messages: {
+          system: instructions,
+          user: provided.messages.user,
+        },
 
         schema: provided.schema,
         tools: provided.tools,
@@ -361,6 +365,7 @@ export class PipelineAiStep<
 
     try {
       const stream = streamText({
+        instructions,
         messages,
 
         ...(provided.schema && {
@@ -369,7 +374,6 @@ export class PipelineAiStep<
           }),
         }),
 
-        instructions: [info, provided.messages.system].join('\n\n'),
         providerOptions: {
           [provided.llm.name]: provided.llm.options,
         },

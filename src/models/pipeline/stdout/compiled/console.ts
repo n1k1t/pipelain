@@ -90,7 +90,9 @@ export default PipelineStdout
         colors.gray(`in ${total} tokens`),
         colors.gray('⇢'),
 
-        separated.join(colors.gray(' ‧‧ '))
+        separated.length
+          ? separated.join(colors.gray(' ‧‧ '))
+          : colors.gray('debug')
       );
     }
   })

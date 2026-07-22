@@ -102,10 +102,12 @@ export class LlmSkillsFactory {
   }
 
   /** Matches and injects skills by minimatch pattern */
-  public match(pattern: string): this {
+  public match(predicate: string | string[]): this {
+    const patterns = _.castArray(predicate);
+
     Object
       .keys(this.registered)
-      .filter((name) => minimatch(name, pattern, { matchBase: true }))
+      .filter((name) => patterns.some((pattern) => minimatch(name, pattern, { matchBase: true })))
       .forEach((name) => _.set(this.included, name, this.registered[name]));
 
     return this;

@@ -122,7 +122,6 @@ export class Project {
       .filter((segment) => segment.length && !segment.startsWith('!'));
 
     const files = await fg(['**/*.{ts,js,json,md}'], { cwd, ignore });
-
     const skills = (await Promise.all(
       env.dirs.skills.map(async (directory) => {
         const locations = await fg(['**/*.md'], { cwd: directory }).catch<string[]>(() => []);

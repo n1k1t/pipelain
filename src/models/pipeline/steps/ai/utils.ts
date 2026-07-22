@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import _ from 'lodash';
 
 import { ModelMessage, Tool } from 'ai';
@@ -14,7 +15,10 @@ const renderDebugHeader = (title: string): string => [
 ].join('\n');
 
 export const compileDebug = async <TSchema>(step: PipelineAiStep, parameters: {
-  messages: ModelMessage[];
+  messages: {
+    system: string;
+    user: string;
+  };
 
   schema?: ZodType<TSchema>;
   tools?: Record<string, Tool>;
@@ -23,7 +27,7 @@ export const compileDebug = async <TSchema>(step: PipelineAiStep, parameters: {
   const file = await File.build([
     '.pipelain',
     'debug',
-    `${new Date(step.pipeline.session.timestamp).toLocaleTimeString()}-${step.pipeline.session.id}`,
+    `${dayjs(step.pipeline.session.timestamp).format('YYYY-MM-DD--HH-mm-ss')}--${step.pipeline.session.id}`,
     `${step.pipeline.session.meta.counters.steps(0)}.${title}.md`,
   ]);
 
@@ -35,8 +39,8 @@ export const compileDebug = async <TSchema>(step: PipelineAiStep, parameters: {
       .map(([name, tool]) => `# \`${name}\`\n\n${tool.description}\n\n---\n`)
   ].join('\n'))
 
-  parameters.messages.forEach((message) =>
-    file.append([`\n${renderDebugHeader(message.role)}\n`, message.content].join('\n'))
+  Object.entries(parameters.messages).forEach(([role, content]) =>
+    file.append([`\n${renderDebugHeader(role)}\n`, content].join('\n'))
   );
 
   await file.write(file.content.trim());
