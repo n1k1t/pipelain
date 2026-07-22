@@ -123,21 +123,25 @@ export class Project {
 
     const files = await fg(['**/*.{ts,js,json,md}'], { cwd, ignore });
 
-    const skills = await Promise.all(
-      (await fg(['**/*.md'], { cwd: env.dirs.skills }).catch<string[]>(() => [])).map(
-        async (location): Promise<ILlmSkill> => {
-          const raw = await fs.readFile(path.join(env.dirs.skills, location), 'utf8').catch(() => '');
-          const { data, content } = matter(raw)
+    const skills = (await Promise.all(
+      env.dirs.skills.map(async (directory) => {
+        const locations = await fg(['**/*.md'], { cwd: directory }).catch<string[]>(() => []);
 
-          return {
-            name: data.name,
-            description: data.description,
+        return Promise.all(
+          locations.map(async (location): Promise<ILlmSkill> => {
+            const raw = await fs.readFile(path.join(directory, location), 'utf8').catch(() => '');
+            const { data, content } = matter(raw);
 
-            content: content.trim(),
-          };
-        }
-      )
-    );
+            return {
+              name: data.name,
+              description: data.description,
+
+              content: content.trim(),
+            };
+          })
+        );
+      })
+    )).flat();
 
     const source = new Project({
       cwd,
@@ -147,7 +151,9 @@ export class Project {
         ignore,
         files,
 
-        skills: skills.reduce((acc, skill) => _.set(acc, skill.name, skill), {}),
+        skills: skills
+          .filter((skill) => skill.content.length)
+          .reduce((acc, skill) => _.set(acc, skill.name, skill), {}),
       },
     });
 

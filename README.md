@@ -114,7 +114,7 @@ The following environment variables are supported:
 | --- | --- | --- |
 | `PIPELAIN_API_KEY` | API key for the LLM provider. | - |
 | `PIPELAIN_API_URL` | Custom API URL for the LLM provider. | - |
-| `PIPELAIN_SKILLS_DIR` | Directory path where LLM skills are stored. | `~/.agents/skills` |
+| `PIPELAIN_SKILLS_PATHS` | Directories paths where LLM skills are stored (separated by `;`). | `~/.agents/skills` |
 | `PIPELAIN_MODEL` | Default LLM model to use. | `gemini-flash-latest` |
 | `PIPELAIN_PROVIDER` | LLM provider name (e.g., `google`, `openai`). | - |
 
@@ -509,7 +509,7 @@ Skills allow you to inject reusable domain-specific instructions or workflows in
 .step('specialized_task', ({ factory, context }) => factory
   .ai('Executing with skills')
   .llm(({ context }) => context.llm.assign({
-    // Include all registered skills from PIPELAIN_SKILLS_DIR
+    // Include all registered skills from PIPELAIN_SKILLS_PATHS or ~/.agents/skills
     skills: factory.skills.all().provide(),
 
     // OR: Include only specific skills by pattern
