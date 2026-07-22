@@ -32,7 +32,10 @@ export default {
   },
 
   dirs: {
-    skills: extract('PIPELAIN_SKILLS_PATHS', path.join(process.env.HOME ?? '~', '.agents/skills')).split(';'),
+    skills: extract(
+      'PIPELAIN_SKILLS_PATHS',
+      ['./.agents/skills', path.join(process.env.HOME ?? '~', '.agents/skills')].join(';')
+    ).split(';'),
 
     assets: path.resolve(
       path.resolve(__dirname, path.parse(__filename).ext === '.ts' ? '' : '../', '../'),
