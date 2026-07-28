@@ -125,20 +125,28 @@ export class Project {
     const skills = (await Promise.all(
       env.dirs.skills.map(async (directory) => {
         const locations = await fg(['**/*.md'], { cwd: directory }).catch<string[]>(() => []);
+        const results = await Promise.all(
+          locations.map(async (location): Promise<ILlmSkill | null> => {
+            try {
+              const raw = await fs.readFile(path.join(directory, location), 'utf8').catch(() => '');
+              const { data, content } = matter(raw);
 
-        return Promise.all(
-          locations.map(async (location): Promise<ILlmSkill> => {
-            const raw = await fs.readFile(path.join(directory, location), 'utf8').catch(() => '');
-            const { data, content } = matter(raw);
+              return {
+                name: data.name,
+                description: data.description,
 
-            return {
-              name: data.name,
-              description: data.description,
+                content: content.trim(),
+              };
+            } catch (error) {
+              const reason = error instanceof Error ? error.message : 'Unknown';
 
-              content: content.trim(),
-            };
+              console.error(`Got error while parsing skill [${location}]. Reason: ${reason}`);
+              return null;
+            }
           })
         );
+
+        return <ILlmSkill[]>results.filter(Boolean);
       })
     )).flat();
 
