@@ -40,6 +40,14 @@ export class LlmGoogleProvider extends LlmProvider<GoogleLanguageModelOptions> {
     model: string,
     parameters: SetPartialKeys<LlmGoogleProvider['provided'], 'options'>
   ): LlmGoogleProvider {
-    return new LlmGoogleProvider(model, { ...parameters, options: parameters.options ?? {} });
+    return new LlmGoogleProvider(model, {
+      ...parameters,
+
+      options: parameters.options ?? {
+        thinkingConfig: {
+          includeThoughts: true,
+        },
+      },
+    });
   }
 }

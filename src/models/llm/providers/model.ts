@@ -1,6 +1,7 @@
 import { LanguageModel } from 'ai';
 
 import { LlmToolCompiler } from '../tools/model';
+import { Constructable } from '../../../../types';
 import { ILlmSkill } from '../types';
 import { LlmMcp } from '../mcp';
 
@@ -65,6 +66,11 @@ export abstract class LlmProvider<TOptions extends object = any> {
   }) {}
 
   public abstract clone(): this;
+
+  /** Casts options from specific provider */
+  public cast<T extends object>(Provider: Constructable<LlmProvider<T>>): LlmProvider<T> {
+    return <LlmProvider<T> & this>this;
+  }
 
   /** Clones this instance and assigns new values */
   public assign(payload: Partial<Omit<LlmProvider<TOptions>['provided'], 'connection' | 'model'>>): this {
