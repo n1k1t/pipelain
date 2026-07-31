@@ -43,6 +43,10 @@ export default {
     ),
   },
 
+  exa: {
+    key: extract('EXA_API_KEY'),
+  },
+
   langfuse: {
     url: extract('LANGFUSE_BASE_URL'),
 

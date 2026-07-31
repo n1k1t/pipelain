@@ -3,6 +3,8 @@ import { z } from 'zod/v3';
 import { LlmToolCompiler, LlmToolExecutionError } from './model';
 import { ArticleContent } from '../../content';
 
+import env from '../../../env';
+
 interface IMcpSearchRequest {
   jsonrpc: string;
   id: number;
@@ -114,6 +116,10 @@ export default LlmToolCompiler
         headers: {
           accept: 'application/json, text/event-stream',
           'content-type': 'application/json',
+
+          ...(env.exa.key && {
+            authorization: `Bearer ${env.exa.key}`,
+          }),
         },
       });
 

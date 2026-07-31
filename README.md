@@ -117,6 +117,7 @@ The following environment variables are supported:
 | `PIPELAIN_SKILLS_PATHS` | Directories paths where LLM skills are stored (separated by `;`). | `~/.agents/skills` |
 | `PIPELAIN_MODEL` | Default LLM model to use. | `gemini-flash-latest` |
 | `PIPELAIN_PROVIDER` | LLM provider name (e.g., `google`, `openai`). | - |
+| `EXA_API_KEY` | API key for Exa web search tools. | - |
 
 ## Pipeline Step Utilities
 
