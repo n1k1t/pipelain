@@ -17,11 +17,11 @@ import { IDefinition, TPipelineAiModelAction, TPipelineAiStepAction } from './ty
 import { IPipelineStepSource, PipelineStep, PipelineStepCompiler } from '../model';
 import { IPipelineConfiguration, TPipelineContentPredicate } from '../../types';
 import { TPipelineStepNestedHandler, TPipelineStepType } from '../types';
+import { skill, attachment, TLlmProviderReasoning } from '../../../llm';
 import { buildMetaManager, cast, disposify } from '../../../../utils';
 import { PipelineStepCompilationError } from '../../errors';
 import { PipelineParameters } from '../../parameters';
 import { VirtualFileSystem } from '../../../vfs';
-import { skill, attachment } from '../../../llm';
 import { PipelineAiError } from './errors';
 import { compileDebug } from './utils';
 import { LlmProvider } from '../../../llm/providers/model';
@@ -409,7 +409,7 @@ export class PipelineAiStep<
         maxRetries: 0,
 
         temperature: provided.llm.temperature,
-        reasoning: provided.llm.reasoning,
+        reasoning: <Exclude<TLlmProviderReasoning, 'max'>>provided.llm.reasoning,
         model: provided.llm.tag,
         tools: provided.tools,
 
