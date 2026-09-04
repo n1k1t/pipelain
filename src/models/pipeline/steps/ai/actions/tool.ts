@@ -107,7 +107,7 @@ export class PipelineAiToolAction extends PipelineAiAction {
   public output?: TOutput;
 
   constructor(public step: PipelineAiStep, public llm: LlmProvider, public fragment: TCallFragment) {
-    super(step, llm);
+    super(step);
   }
 
   /** Renders input parameters preview */
@@ -266,6 +266,6 @@ export class PipelineAiToolAction extends PipelineAiAction {
   }
 
   static build(step: PipelineAiStep, llm: LlmProvider, fragment: TCallFragment): PipelineAiToolAction {
-      return new PipelineAiToolAction(step, llm, fragment);
-    }
+    return new PipelineAiToolAction(step, llm, fragment);
+  }
 }

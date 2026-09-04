@@ -1,9 +1,16 @@
 import { LanguageModelUsage } from 'ai';
 import EventEmitter from 'events';
 
-import type { PipelineAiError, PipelineAiReasoningAction, PipelineAiToolAction, PipelineStep } from './steps';
 import type { LlmProvider } from '../llm';
 import type { Pipeline } from './model';
+import type {
+  PipelineAiError,
+  PipelineAiFallbackAction,
+  PipelineAiReasoningAction,
+  PipelineAiToolAction,
+  PipelineStep,
+  TPipelineAiStepAction,
+} from './steps';
 
 import { buildCounter, cast } from '../../utils';
 
@@ -14,13 +21,14 @@ export interface IPipelineSessionEventMeta {
 
 export interface IPipelineSessionEvents {
   'step:ai:reasoning': [PipelineAiReasoningAction];
+  'step:ai:fallback': [PipelineAiFallbackAction];
   'step:ai:tool': [PipelineAiToolAction];
 
   'step:ai:complete': [{
     step: PipelineStep;
     llm: LlmProvider;
 
-    actions: (PipelineAiToolAction | PipelineAiReasoningAction)[];
+    actions: TPipelineAiStepAction[];
     output: unknown;
     usage: LanguageModelUsage;
 
@@ -34,22 +42,12 @@ export interface IPipelineSessionEvents {
     step: PipelineStep;
     llm: LlmProvider;
 
-    actions: (PipelineAiToolAction | PipelineAiReasoningAction)[];
+    actions: TPipelineAiStepAction[];
     error: PipelineAiError;
 
     messages: {
       system: string;
       user: string;
-    };
-  }];
-
-  'step:ai:fallback': [{
-    step: PipelineStep;
-    error: PipelineAiError;
-
-    llm: {
-      old: LlmProvider;
-      new: LlmProvider;
     };
   }];
 

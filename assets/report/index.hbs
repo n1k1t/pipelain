@@ -167,85 +167,153 @@
                           {{#if (eq type "ai:tool")}}
                             <span class="action-type-badge badge-tool">TOOL</span>
                             <span class="action-name text-mono">{{name}}</span>
+                          {{else if (eq type "ai:fallback")}}
+                            <span class="action-type-badge badge-fallback">FALLBACK</span>
+                            <span class="action-name text-mono">{{llm.old.model}}</span>
                           {{else}}
                             <span class="action-type-badge badge-reasoning">REASONING</span>
                           {{/if}}
                         </div>
                         <div class="summary-right">
-                          <span class="llm-tag text-muted">{{llm.name}}/{{llm.model}}</span>
-                          <span class="badge badge-{{meta.state}}">{{meta.state}}</span>
-                          <span class="time-tag">{{formatDuration meta.spent}}</span>
+                          {{#if (eq type "ai:fallback")}}
+                            <span class="badge badge-error">{{error.type}}</span>
+                          {{else}}
+                            <span class="llm-tag text-muted">{{llm.name}}/{{llm.model}}</span>
+                            <span class="badge badge-{{meta.state}}">{{meta.state}}</span>
+                            <span class="time-tag">{{formatDuration meta.spent}}</span>
+                          {{/if}}
                         </div>
                       </summary>
 
                       <div class="action-content">
-                        <!-- Action LLM & Details -->
-                        <div class="io-title">Info</div>
-                        <div class="action-meta-grid">
-                          <div class="meta-row">
-                            <span class="meta-label">Model:</span>
-                            <span class="meta-value text-mono">{{llm.name}}/{{llm.model}}</span>
-                          </div>
-                          {{#if id}}
+                        {{#if (eq type "ai:fallback")}}
+                          <!-- Fallback LLM Info -->
+                          <div class="io-title">Transition</div>
+                          <div class="action-meta-grid">
                             <div class="meta-row">
-                              <span class="meta-label">Action ID:</span>
-                              <span class="meta-value text-mono">{{id}}</span>
+                              <span class="meta-label">From:</span>
+                              <span class="meta-value text-mono">{{llm.old.name}}/{{llm.old.model}}</span>
                             </div>
-                          {{/if}}
-                        </div>
-
-                        <!-- Tool Input/Output -->
-                        {{#if (eq type "ai:tool")}}
-                          <div class="action-io">
-                            <div class="io-block">
-                              <div class="io-title">Input ({{input.type}})</div>
-                              <pre><code class="{{#if (eq input.type "json")}}language-json{{/if}}">{{#if (eq input.type "json")}}{{json input.value}}{{else}}{{input.value}}{{/if}}</code></pre>
+                            <div class="meta-row">
+                              <span class="meta-label">To:</span>
+                              <span class="meta-value text-mono">{{llm.new.name}}/{{llm.new.model}}</span>
                             </div>
+                          </div>
 
-                            {{#if output}}
-                              <div class="io-block {{#if (eq output.type "error")}}io-error{{/if}}">
-                                <div class="io-title">Output ({{output.type}})</div>
-                                {{#if (eq output.type "error")}}
-                                  <div class="error-output">
-                                    <pre><code>{{#if (eq output.value.type "json")}}{{json output.value.payload}}{{else}}{{output.value.payload}}{{/if}}</code></pre>
-                                  </div>
-                                {{else}}
-                                  <pre><code class="{{#if (eq output.type "json")}}language-json{{/if}}">{{#if (eq output.type "json")}}{{json output.value}}{{else}}{{output.value}}{{/if}}</code></pre>
-                                {{/if}}
+                          <!-- Fallback Reason -->
+                          <div class="io-title">Reason</div>
+                          <div class="error-box error-box-fallback">
+                            <div class="error-header">
+                              <svg class="error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="12" y1="8" x2="12" y2="12" />
+                                <line x1="12" y1="16" x2="12.01" y2="16" />
+                              </svg>
+                              <span class="error-type">{{error.type}}</span>
+                            </div>
+                            <div class="error-message">{{error.reason}}</div>
+                          </div>
+
+                          <div class="io-title">Previous Provider</div>
+                          <div class="action-meta-grid">
+                            {{#if llm.old.parameters}}
+                              <div class="span-all">
+                                <span class="meta-label">Parameters:</span>
+                                <pre><code class="language-json">{{json llm.old.parameters}}</code></pre>
+                              </div>
+                            {{/if}}
+                            {{#if llm.old.options}}
+                              <div class="span-all">
+                                <span class="meta-label">Options:</span>
+                                <pre><code class="language-json">{{json llm.old.options}}</code></pre>
+                              </div>
+                            {{/if}}
+                          </div>
+
+                          <div class="io-title">fallback Provider</div>
+                          <div class="action-meta-grid">
+                            {{#if llm.new.parameters}}
+                              <div class="span-all">
+                                <span class="meta-label">Parameters:</span>
+                                <pre><code class="language-json">{{json llm.new.parameters}}</code></pre>
+                              </div>
+                            {{/if}}
+                            {{#if llm.new.options}}
+                              <div class="span-all">
+                                <span class="meta-label">Options:</span>
+                                <pre><code class="language-json">{{json llm.new.options}}</code></pre>
                               </div>
                             {{/if}}
                           </div>
                         {{else}}
-                          <!-- Reasoning Output -->
-                          <div class="action-io">
-                            <div class="io-block">
-                              <div class="io-title">Reasoning Output</div>
-                              <pre class="reasoning-output"><code>{{output}}</code></pre>
+                          <!-- Action LLM & Details -->
+                          <div class="io-title">Info</div>
+                          <div class="action-meta-grid">
+                            <div class="meta-row">
+                              <span class="meta-label">Model:</span>
+                              <span class="meta-value text-mono">{{llm.name}}/{{llm.model}}</span>
                             </div>
+                            {{#if id}}
+                              <div class="meta-row">
+                                <span class="meta-label">Action ID:</span>
+                                <span class="meta-value text-mono">{{id}}</span>
+                              </div>
+                            {{/if}}
+                          </div>
+
+                          <!-- Tool Input/Output -->
+                          {{#if (eq type "ai:tool")}}
+                            <div class="action-io">
+                              <div class="io-block">
+                                <div class="io-title">Input ({{input.type}})</div>
+                                <pre><code class="{{#if (eq input.type "json")}}language-json{{/if}}">{{#if (eq input.type "json")}}{{json input.value}}{{else}}{{input.value}}{{/if}}</code></pre>
+                              </div>
+
+                              {{#if output}}
+                                <div class="io-block {{#if (eq output.type "error")}}io-error{{/if}}">
+                                  <div class="io-title">Output ({{output.type}})</div>
+                                  {{#if (eq output.type "error")}}
+                                    <div class="error-output">
+                                      <pre><code>{{#if (eq output.value.type "json")}}{{json output.value.payload}}{{else}}{{output.value.payload}}{{/if}}</code></pre>
+                                    </div>
+                                  {{else}}
+                                    <pre><code class="{{#if (eq output.type "json")}}language-json{{/if}}">{{#if (eq output.type "json")}}{{json output.value}}{{else}}{{output.value}}{{/if}}</code></pre>
+                                  {{/if}}
+                                </div>
+                              {{/if}}
+                            </div>
+                          {{else}}
+                            <!-- Reasoning Output -->
+                            <div class="action-io">
+                              <div class="io-block">
+                                <div class="io-title">Reasoning Output</div>
+                                <pre class="reasoning-output"><code>{{output}}</code></pre>
+                              </div>
+                            </div>
+                          {{/if}}
+
+                          <div class="io-title">Provider</div>
+                          <div class="action-meta-grid">
+                            {{#if llm.parameters}}
+                              <div class="span-all">
+                                <span class="meta-label">Parameters:</span>
+                                <pre><code class="language-json">{{json llm.parameters}}</code></pre>
+                              </div>
+                            {{/if}}
+                            {{#if llm.options}}
+                              <div class="span-all">
+                                <span class="meta-label">Options:</span>
+                                <pre><code class="language-json">{{json llm.options}}</code></pre>
+                              </div>
+                            {{/if}}
+                            {{#if trace}}
+                              <div class="span-all">
+                                <span class="meta-label">Trace Metadata:</span>
+                                <pre><code class="language-json">{{json trace}}</code></pre>
+                              </div>
+                            {{/if}}
                           </div>
                         {{/if}}
-
-                        <div class="io-title">Provider</div>
-                        <div class="action-meta-grid">
-                          {{#if llm.parameters}}
-                            <div class="span-all">
-                              <span class="meta-label">Parameters:</span>
-                              <pre><code class="language-json">{{json llm.parameters}}</code></pre>
-                            </div>
-                          {{/if}}
-                          {{#if llm.options}}
-                            <div class="span-all">
-                              <span class="meta-label">Options:</span>
-                              <pre><code class="language-json">{{json llm.options}}</code></pre>
-                            </div>
-                          {{/if}}
-                          {{#if trace}}
-                            <div class="span-all">
-                              <span class="meta-label">Trace Metadata:</span>
-                              <pre><code class="language-json">{{json trace}}</code></pre>
-                            </div>
-                          {{/if}}
-                        </div>
                       </div>
                     </details>
                   {{/each}}

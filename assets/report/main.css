@@ -274,6 +274,11 @@ details[open] > summary .expand-arrow {
   color: var(--color-reasoning);
 }
 
+.badge-fallback {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
 /* Tags */
 .llm-tag, .usage-tag, .time-tag, .duration-tag {
   font-size: 12px;
@@ -348,6 +353,10 @@ details[open] > summary .expand-arrow {
 
 .action-card.action-type-ai\:reasoning {
   border-left: 3px solid var(--color-reasoning);
+}
+
+.action-card.action-type-ai\:fallback {
+  border-left: 3px solid var(--color-warning);
 }
 
 .action-summary {
@@ -468,6 +477,10 @@ code {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.error-box-fallback {
+  margin-bottom: 20px;
 }
 
 .error-header {

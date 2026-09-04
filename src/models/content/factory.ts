@@ -1,6 +1,7 @@
 import path from 'path';
 import fs from 'fs/promises';
 import fg from 'fast-glob';
+import _ from 'lodash';
 
 import { Content, TContentType } from './kinds/model';
 import { SetPartialKeys } from '../../../types';
@@ -56,6 +57,7 @@ export class ContentFactory {
     return kinds.PlainContent.build(payload);
   }
 
+  /** Creates attachment that will be placed into virtual file system */
   public attachment(
     title: string,
     payload: Omit<SetPartialKeys<kinds.AttachmentContent['TSchema'], 'extension' | 'key'>, 'title'>
@@ -63,6 +65,29 @@ export class ContentFactory {
     return kinds.AttachmentContent.build({ title, ...payload });
   }
 
+  /** Creates content that will be placed into `user` messages */
+  public user(predicate: string | Content | (string | Content)[]): kinds.GroupContent {
+    return kinds.GroupContent.build(
+      _.flatMap([predicate]).map(
+        (segment) => segment instanceof Content
+          ? segment.relocate('user')
+          : kinds.PlainContent.build(segment).relocate('user')
+      )
+    );
+  }
+
+  /** Creates content that will be placed into `system` messages */
+  public system(predicate: string | Content | (string | Content)[]): kinds.GroupContent {
+    return kinds.GroupContent.build(
+      _.flatMap([predicate]).map(
+        (segment) => segment instanceof Content
+          ? segment.relocate('system')
+          : kinds.PlainContent.build(segment).relocate('system')
+      )
+    );
+  }
+
+  /** Reads file and puts it as attachemnt into virtual file system */
   public async file(title: string, location: string | string[]): Promise<kinds.AttachmentContent> {
     const file = await File.build(location, { cwd: this.project?.cwd });
 

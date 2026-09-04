@@ -5,7 +5,7 @@ import { Constructable } from '../../../../types';
 import { ILlmSkill } from '../types';
 import { LlmMcp } from '../mcp';
 
-export type TLlmProviderReasoning = 'provider-default' | 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+export type TLlmProviderReasoning = 'provider-default' | 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 export interface ILlmProviderConnection {
   /** Provider API key */

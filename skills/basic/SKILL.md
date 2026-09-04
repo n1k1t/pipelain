@@ -55,6 +55,10 @@ Used to create structured prompt content. These methods are available via `utils
 - `file(title, path)`: Reads a local file and attaches it as context.
 - `glob(title, pattern)`: Reads multiple files by pattern and attaches them.
 - `plain(text)`: Adds raw markdown text.
+- `user(content)`: Forces content to be placed into the `user` message.
+- `system(content)`: Forces content to be placed into the `system` message.
+
+Each content kind has a default location (`tasks` and plain strings default to `user`, everything else defaults to `system`); wrap content in `utils.content.user()` / `utils.content.system()` to override it explicitly.
 
 ### `factory.tools` (LlmToolsFactory)
 Used to provide tools to the AI. These methods are available via `factory.tools` in pipeline steps.
@@ -256,12 +260,12 @@ const pipeline = PipelineCompiler
 
 ### Parallel Execution with `swarm`
 
-Run multiple independent AI tasks in parallel to improve performance.
+Run multiple independent AI tasks in parallel to improve performance. Subtasks can be provided as a `list` (array, results come back positionally) or as a `map` (keyed object, results come back under the same keys). Both support `.limit()` to bound concurrency.
 
 ```ts
 .step('analysis', ({ factory }) => factory
   .swarm('Parallel Analysis')
-  .subtasks([
+  .list([
     factory
       .ai('Sentiment Analysis')
       .schema(z.object({ score: z.number() }))
@@ -275,6 +279,30 @@ Run multiple independent AI tasks in parallel to improve performance.
   .limit(2) // Limit parallel executions
 )
 // Results will be available in context.state.analysis as an array of PromiseSettledResult
+```
+
+> `subtasks(...)` is a deprecated alias of `list(...)` kept for backward compatibility — prefer `list`.
+
+Use `map` when you need to address each subtask result by name instead of by array index:
+
+```ts
+.step('analysis', ({ factory }) => factory
+  .swarm('Parallel Analysis')
+  .map({
+    sentiment: factory
+      .ai('Sentiment Analysis')
+      .schema(z.object({ score: z.number() }))
+      .prompt(({ context }) => [`Analyze sentiment of: ${context.input}`]),
+
+    keywords: factory
+      .ai('Keyword Extraction')
+      .schema(z.object({ tags: z.array(z.string()) }))
+      .prompt(({ context }) => [`Extract keywords from: ${context.input}`]),
+  })
+  .limit(2) // Limit parallel executions
+)
+// context.state.analysis.sentiment -> PromiseSettledResult<{ score: number }>
+// context.state.analysis.keywords -> PromiseSettledResult<{ tags: string[] }>
 ```
 
 ### Iterative Execution with `loop` (Self-Correction)

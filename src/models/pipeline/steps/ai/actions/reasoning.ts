@@ -42,7 +42,7 @@ export class PipelineAiReasoningAction extends PipelineAiAction {
   public delta: string = '';
 
   constructor(public step: PipelineAiStep, public llm: LlmProvider, public fragment: TStartFragment) {
-    super(step, llm);
+    super(step);
   }
 
   /** Renders output preview */

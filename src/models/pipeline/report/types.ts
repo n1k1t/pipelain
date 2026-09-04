@@ -1,6 +1,6 @@
 import type { LanguageModelUsage } from 'ai';
 
-import type { PipelineAiError, PipelineAiReasoningAction, PipelineAiToolAction } from '../steps';
+import type { PipelineAiError, TPipelineAiStepAction } from '../steps';
 import type { PipelineSession } from '../session';
 import type { LlmProvider } from '../../llm';
 
@@ -29,7 +29,7 @@ export type TPipelineReportSnapshot =
     llm: TPipelineReportSnapshotLlm;
 
     messages: TPipelineReportSnapshotMessages;
-    actions: (PipelineAiToolAction['TPlain'] | PipelineAiReasoningAction['TPlain'])[];
+    actions: TPipelineAiStepAction['TPlain'][];
     error: PipelineAiError;
   }
   | {
@@ -40,9 +40,8 @@ export type TPipelineReportSnapshot =
     llm: TPipelineReportSnapshotLlm;
 
     messages: TPipelineReportSnapshotMessages;
+    actions: TPipelineAiStepAction['TPlain'][];
     output: unknown;
-
-    actions: (PipelineAiToolAction['TPlain'] | PipelineAiReasoningAction['TPlain'])[];
     usage: LanguageModelUsage;
   };
 

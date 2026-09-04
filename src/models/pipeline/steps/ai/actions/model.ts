@@ -1,8 +1,5 @@
-import { ProviderMetadata } from 'ai';
-
 import type { IPipelineSessionEventMeta } from '../../../session';
 import type { PipelineAiStep } from '../index';
-import type { LlmProvider } from '../../../../llm';
 
 import { buildTimeSpendMarker } from '../../../../../utils';
 
@@ -15,7 +12,7 @@ export abstract class PipelineAiAction {
 
   protected marker = buildTimeSpendMarker(this.timestamp);
 
-  constructor(public step: PipelineAiStep, public llm: LlmProvider) {}
+  constructor(public step: PipelineAiStep) {}
 
   /** Provides model metadata */
   public abstract provide(kind: 'initial' | 'final'): object | null;

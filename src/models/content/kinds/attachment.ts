@@ -1,7 +1,7 @@
 import _ from 'lodash';
 
+import { Content, TContentLocation } from './model';
 import { SetPartialKeys } from '../../../../types';
-import { Content } from './model';
 
 export class AttachmentContent extends Content<'attachment', {
   content: unknown;
@@ -11,10 +11,16 @@ export class AttachmentContent extends Content<'attachment', {
   /** File extension with dot (`.json`, `.md` and etc) */
   extension?: string;
 }> {
+  public location: TContentLocation = 'system';
+
   public render(): string {
     return _.isObject(this.payload.content)
       ? JSON.stringify(this.payload.content, null, 2)
       : String(this.payload.content);
+  }
+
+  public clone(): AttachmentContent {
+    return AttachmentContent.build(this.payload);
   }
 
   static build(

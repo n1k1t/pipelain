@@ -9,13 +9,13 @@ import {
   ProviderMetadata,
   streamText,
   Tool,
-  ToolResultPart,
 } from 'ai';
 
+import { PipelineAiFallbackAction, PipelineAiReasoningAction, PipelineAiToolAction } from './actions';
+import { ArticleContent, ContentFactory, SourcesContent, TContentLocation } from '../../../content';
+import { IDefinition, TPipelineAiModelAction, TPipelineAiStepAction } from './types';
 import { IPipelineStepSource, PipelineStep, PipelineStepCompiler } from '../model';
 import { IPipelineConfiguration, TPipelineContentPredicate } from '../../types';
-import { PipelineAiReasoningAction, PipelineAiToolAction } from './actions';
-import { ArticleContent, ContentFactory, SourcesContent } from '../../../content';
 import { TPipelineStepNestedHandler, TPipelineStepType } from '../types';
 import { buildMetaManager, cast, disposify } from '../../../../utils';
 import { PipelineStepCompilationError } from '../../errors';
@@ -25,10 +25,10 @@ import { skill, attachment } from '../../../llm';
 import { PipelineAiError } from './errors';
 import { compileDebug } from './utils';
 import { LlmProvider } from '../../../llm/providers/model';
-import { IDefinition } from './types';
 
 export * from './actions';
 export * from './errors';
+export * from './types';
 
 export class PipelineAiStepCompiler<
   TConfiguration extends IPipelineConfiguration = any,
@@ -115,13 +115,31 @@ export class PipelineAiStep<
         exit: (clients) => Promise.allSettled(clients.map((client) => client.close())),
       });
 
-      const system: string[] = [];
-      const user: string[] = [];
+      const messages = {
+        system: {
+          stack: cast<string[]>([]),
 
-      const articles: string[] = [];
-      const sources: string[] = [];
-      const rules: string[] = [];
-      const tasks: string[] = [];
+          segments: {
+            articles: cast<string[]>([]),
+            sources: cast<string[]>([]),
+            rules: cast<string[]>([]),
+            tasks: cast<string[]>([]),
+          },
+        },
+        user: {
+          stack: cast<string[]>([]),
+
+          segments: {
+            articles: cast<string[]>([]),
+            sources: cast<string[]>([]),
+            rules: cast<string[]>([]),
+            tasks: cast<string[]>([]),
+          },
+        },
+      } satisfies Record<TContentLocation, {
+        stack: string[];
+        segments: Record<string, string[]>;
+      }>;
 
       content
         .reduce<TPipelineContentPredicate>((acc, segment) => {
@@ -134,24 +152,24 @@ export class PipelineAiStep<
         }, [])
         .forEach((segment) => {
           if (typeof segment === 'string') {
-            return tasks.push(segment);
+            return messages.user.segments.tasks.push(segment);
           }
 
           if (ContentFactory.is('article', segment)) {
-            return articles.push(segment.render());
+            return messages[segment.location].segments.articles.push(segment.render());
           }
           if (ContentFactory.is('plain', segment)) {
-            return articles.push(segment.render());
+            return messages[segment.location].segments.articles.push(segment.render());
           }
 
           if (ContentFactory.is('sources', segment)) {
-            return sources.push(...segment.serialize());
+            return messages[segment.location].segments.sources.push(...segment.serialize());
           }
           if (ContentFactory.is('rules', segment)) {
-            return rules.push(...segment.payload);
+            return messages[segment.location].segments.rules.push(...segment.payload);
           }
           if (ContentFactory.is('tasks', segment)) {
-            return tasks.push(...segment.payload);
+            return messages[segment.location].segments.tasks.push(...segment.payload);
           }
 
           if (ContentFactory.is('attachment', segment)) {
@@ -164,15 +182,8 @@ export class PipelineAiStep<
           }
         });
 
-      if (articles.length) {
-        system.push(...articles);
-      }
-      if (rules.length) {
-        system.push(ArticleContent.build({ title: 'Rules', content: [{ ol: rules }] }).render());
-      }
-
       if (llm.skills.length) {
-        system.push(
+        messages.system.stack.push(
           ArticleContent
             .build({
               title: 'Available skills',
@@ -182,19 +193,8 @@ export class PipelineAiStep<
         );
       }
 
-      if (sources.length) {
-        system.push(
-          ArticleContent
-            .build({
-              title: 'Sources. Read **ALL** the content below using `read` tool **(IMPORTANT: FOLLOW THE ORDER)**',
-              content: [{ ol: sources }],
-            })
-            .render()
-        );
-      }
-
       if (vfs.size) {
-        system.push(
+        messages.system.stack.push(
           ArticleContent
             .build({
               title: 'Attachments. Read **ALL** the content below using `attachment` tool **(IMPORTANT: FOLLOW THE ORDER)**',
@@ -209,18 +209,43 @@ export class PipelineAiStep<
         );
       }
 
-      if (tasks.length) {
-        user.push(
-          ArticleContent
-            .build({
-              title: '**Task** (complete following list step by step)',
-              tag: 'h1',
+      Object.values(messages).forEach((content) => {
+        if (content.segments.articles.length) {
+          content.stack.push(...content.segments.articles);
+        }
 
-              content: [{ ol: tasks }]
-            })
-            .render()
-        );
-      }
+        if (content.segments.rules.length) {
+          content.stack.push(
+            ArticleContent
+              .build({ title: 'Rules', content: [{ ol: content.segments.rules }] })
+              .render()
+          );
+        }
+
+        if (content.segments.sources.length) {
+          content.stack.push(
+            ArticleContent
+              .build({
+                title: 'Sources. Read **ALL** the content below using `read` tool **(IMPORTANT: FOLLOW THE ORDER)**',
+                content: [{ ol: content.segments.sources }],
+              })
+              .render()
+          );
+        }
+
+        if (content.segments.tasks.length) {
+          content.stack.push(
+            ArticleContent
+              .build({
+                title: '**Task** (complete following list step by step)',
+                tag: 'h1',
+
+                content: [{ ol: content.segments.tasks }]
+              })
+              .render()
+          );
+        }
+      });
 
       const tools = Object
         .entries(
@@ -252,8 +277,8 @@ export class PipelineAiStep<
           : this.definition.schema,
 
         messages: {
-          user: user.join('\n\n'),
-          system: system.join('\n\n'),
+          user: messages.user.stack.join('\n\n'),
+          system: messages.system.stack.join('\n\n'),
         },
       });
 
@@ -277,12 +302,14 @@ export class PipelineAiStep<
       info?: string;
 
       history?: {
-        actions: (PipelineAiToolAction | PipelineAiReasoningAction)[];
+        actions: TPipelineAiModelAction[];
         trace?: ProviderMetadata;
       }[];
     };
 
     iteration?: number;
+    actions?: TPipelineAiStepAction[];
+
     schema?: ZodType<TSchema>;
     tools?: Record<string, Tool>;
 
@@ -292,9 +319,11 @@ export class PipelineAiStep<
     };
   }): Promise<TSchema> {
     const iteration = provided.iteration ?? 1;
-    const actions = {
+    const actions = provided.actions ?? [];
+
+    const history = {
       sequence: cast<string[]>([]),
-      map: cast<Record<string, PipelineAiToolAction | PipelineAiReasoningAction>>({}),
+      map: cast<Record<string, TPipelineAiModelAction>>({}),
 
       trace: cast<ProviderMetadata | undefined>(undefined),
     };
@@ -317,39 +346,37 @@ export class PipelineAiStep<
       content: provided.messages.user,
     }];
 
-    if (provided.messages.history?.length) {
-      provided.messages.history.forEach((record) => {
-        if (record.actions.every((action) => action instanceof PipelineAiReasoningAction)) {
-          return messages.push({
-            role: 'assistant',
-            providerOptions: record.trace,
+    provided.messages.history?.forEach((record) => {
+      if (record.actions.every((action) => action instanceof PipelineAiReasoningAction)) {
+        return messages.push({
+          role: 'assistant',
+          providerOptions: record.trace,
 
-            content: record.actions.map((action: PipelineAiReasoningAction) => action.format()),
-          });
-        }
+          content: record.actions.map((action: PipelineAiReasoningAction) => action.format()),
+        });
+      }
 
-        messages.push(
-          {
-            role: 'assistant',
-            providerOptions: record.trace,
+      messages.push(
+        {
+          role: 'assistant',
+          providerOptions: record.trace,
 
-            content: record.actions.map((action) =>
-              action instanceof PipelineAiReasoningAction
-                ? action.format()
-                : action.format('call-part')
-            ),
-          },
-          {
-            role: 'tool',
-            providerOptions: record.trace,
+          content: record.actions.map((action) =>
+            action instanceof PipelineAiReasoningAction
+              ? action.format()
+              : action.format('call-part')
+          ),
+        },
+        {
+          role: 'tool',
+          providerOptions: record.trace,
 
-            content: record.actions
-              .filter((action) => action instanceof PipelineAiToolAction)
-              .map((action): ToolResultPart => action.format('result-part')),
-          },
-        );
-      });
-    }
+          content: record.actions
+            .filter((action) => action instanceof PipelineAiToolAction)
+            .map((action) => action.format('result-part')),
+        },
+      );
+    });
 
     if (this.definition.debug) {
       return compileDebug(this, {
@@ -393,7 +420,7 @@ export class PipelineAiStep<
 
         onError: () => undefined,
         onFinish: ({ finalStep }) => {
-          actions.trace = finalStep.providerMetadata;
+          history.trace = finalStep.providerMetadata;
         },
       });
 
@@ -402,17 +429,18 @@ export class PipelineAiStep<
           case 'tool-call': {
             const action = PipelineAiToolAction.build(this, provided.llm, fragment);
 
-            actions.map[action.id] = action;
-            this.pipeline.session.emit('step:ai:tool', action);
+            history.map[action.id] = action;
+            actions.push(action);
 
+            this.pipeline.session.emit('step:ai:tool', action);
             continue;
           };
 
           case 'tool-result': {
-            const action = actions.map[fragment.toolCallId];
+            const action = history.map[fragment.toolCallId];
 
             if (action instanceof PipelineAiToolAction) {
-              actions.sequence.push(action.id);
+              history.sequence.push(action.id);
               this.pipeline.session.emit('step:ai:tool', action.complete('DONE', fragment));
             };
 
@@ -420,10 +448,10 @@ export class PipelineAiStep<
           };
 
           case 'tool-error': {
-            const action = actions.map[fragment.toolCallId];
+            const action = history.map[fragment.toolCallId];
 
             if (action instanceof PipelineAiToolAction) {
-              actions.sequence.push(action.id);
+              history.sequence.push(action.id);
               this.pipeline.session.emit('step:ai:tool', action.complete('ERROR', fragment));
             };
 
@@ -433,14 +461,15 @@ export class PipelineAiStep<
           case 'reasoning-start': {
             const action = PipelineAiReasoningAction.build(this, provided.llm, fragment);
 
-            actions.map[action.id] = action;
-            this.pipeline.session.emit('step:ai:reasoning', action);
+            history.map[action.id] = action;
+            actions.push(action);
 
+            this.pipeline.session.emit('step:ai:reasoning', action);
             continue;
           };
 
           case 'reasoning-delta': {
-            const action = actions.map[fragment.id];
+            const action = history.map[fragment.id];
 
             if (action instanceof PipelineAiReasoningAction) {
               this.pipeline.session.emit('step:ai:reasoning', action.enrich(fragment));
@@ -450,10 +479,10 @@ export class PipelineAiStep<
           };
 
           case 'reasoning-end': {
-            const action = actions.map[fragment.id];
+            const action = history.map[fragment.id];
 
             if (action instanceof PipelineAiReasoningAction) {
-              actions.sequence.push(action.id);
+              history.sequence.push(action.id);
               this.pipeline.session.emit('step:ai:reasoning', action.complete(fragment));
             };
 
@@ -479,15 +508,13 @@ export class PipelineAiStep<
       }
 
       this.pipeline.session.emit('step:ai:complete', {
+        actions,
         output,
 
         step: this,
         llm: provided.llm,
         usage: await stream.usage,
 
-        actions: (provided.messages.history ?? [])
-          .reduce<(PipelineAiToolAction | PipelineAiReasoningAction)[]>((acc, { actions }) => acc.concat(actions), [])
-          .concat(actions.sequence.map((id) => actions.map[id])),
 
         messages: {
           system: provided.messages.system,
@@ -499,7 +526,7 @@ export class PipelineAiStep<
     } catch (error: unknown) {
       const converted = PipelineAiError.convert({ source: error, llm: provided.llm });
 
-      if (actions.sequence.length) {
+      if (history.sequence.length) {
         converted.assign({ type: 'EMPTY_OUTPUT' });
       }
 
@@ -517,14 +544,12 @@ export class PipelineAiStep<
 
       if (!fallback && enough) {
         this.pipeline.session.emit('step:ai:error', {
-          step: this,
+          actions,
 
           error: converted,
           llm: provided.llm,
 
-          actions: (provided.messages.history ?? [])
-            .reduce<(PipelineAiToolAction | PipelineAiReasoningAction)[]>((acc, { actions }) => acc.concat(actions), [])
-            .concat(actions.sequence.map((id) => actions.map[id])),
+          step: this,
 
           messages: {
             system: provided.messages.system,
@@ -536,18 +561,17 @@ export class PipelineAiStep<
       }
 
       if (fallback) {
-        this.pipeline.session.emit('step:ai:fallback', {
-          step: this,
-          error: converted,
-
-          llm: {
-            old: provided.llm,
-            new: fallback.provider,
-          },
+        const action = PipelineAiFallbackAction.build(this, converted, {
+          old: provided.llm,
+          new: fallback.provider,
         });
+
+        this.pipeline.session.emit('step:ai:fallback', action);
+        actions.push(action);
       }
 
       return this.generate({
+        actions,
         errors,
 
         parameters: provided.parameters,
@@ -575,8 +599,8 @@ export class PipelineAiStep<
 
           history: converted.is(['EMPTY_OUTPUT'])
             ? (provided.messages.history ?? []).concat({
-              actions: actions.sequence.map((id) => actions.map[id]),
-              trace: actions.trace,
+              actions: history.sequence.map((id) => history.map[id]),
+              trace: history.trace,
             })
             : provided.messages.history,
 
