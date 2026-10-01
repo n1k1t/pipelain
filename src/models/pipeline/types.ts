@@ -4,6 +4,7 @@ import type { Content } from '../content';
 
 export type TPipelineCompilerConfigurationStepType = 'named' | 'anonymous';
 export type TPipelineContentPredicate = (string | Content)[];
+export type TPipelineLogLevel = 'DEBUG' | 'INFO' | 'WARN';
 
 export interface IPipelineConfiguration {
   input: unknown;

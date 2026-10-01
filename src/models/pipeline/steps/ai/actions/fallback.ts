@@ -13,6 +13,8 @@ export class PipelineAiFallbackAction extends PipelineAiAction {
     type: 'ai:fallback';
     error: PipelineAiError;
 
+    meta: PipelineAiFallbackAction['meta']['TPlain'];
+
     llm: Record<'old' | 'new', {
       name: string;
       model: string;
@@ -41,6 +43,8 @@ export class PipelineAiFallbackAction extends PipelineAiAction {
     return {
       type: 'ai:fallback',
       error: this.error,
+
+      meta: this.meta.toPlain(),
 
       llm: {
         old: {
@@ -73,6 +77,9 @@ export class PipelineAiFallbackAction extends PipelineAiAction {
     error: PipelineAiError,
     llm: PipelineAiFallbackAction['llm']
   ): PipelineAiFallbackAction {
-    return new PipelineAiFallbackAction(step, llm, error).actualize('DONE');
+    const action = new PipelineAiFallbackAction(step, llm, error);
+
+    action.meta.actualize('DONE');
+    return action;
   }
 }

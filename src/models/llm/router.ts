@@ -1,3 +1,5 @@
+import minimatch from 'minimatch';
+
 import { LLlmModelProviderName, TLlmModelProviderName } from './types';
 import { LlmProvider } from './providers/model';
 
@@ -5,6 +7,11 @@ import * as providers from './providers';
 import env from '../../env';
 
 export class LlmRouter {
+  protected registrations = new Set<{
+    pattern: string;
+    handler: (model: string) => LlmProvider;
+  }>();
+
   constructor(protected configuration: {
     key: string;
 
@@ -12,8 +19,20 @@ export class LlmRouter {
     url?: string;
   }) {}
 
+  /** Registers a provider handler for models matched by minimatch pattern */
+  public register(pattern: string, handler: (model: string) => LlmProvider): this {
+    this.registrations.add({ pattern, handler });
+    return this;
+  }
+
   /** Returns a language model based on the provider and model name */
   public provide(model: string = env.model): LlmProvider {
+    for (const registration of this.registrations) {
+      if (minimatch(model, registration.pattern)) {
+        return registration.handler(model);
+      }
+    }
+
     const provider: TLlmModelProviderName = LLlmModelProviderName.includes(<TLlmModelProviderName>this.configuration.provider)
       ? <TLlmModelProviderName>this.configuration.provider
       : this.define(model);

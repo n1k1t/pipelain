@@ -20,10 +20,10 @@ export default LlmToolCompiler
   .execute(({ context, options }) => async ({ path, content }) => {
     try {
       if (!checkPatternIsRestricted(path)) {
-        throw LlmToolExecutionError.build('write', `Path "${path}" is going to out of scope the project`);
+        throw LlmToolExecutionError.build(`Path "${path}" is going to out of scope the project`);
       }
       if (options.allowed && !options.allowed.some((pattern) => minimatch(path, pattern, { matchBase: true }))) {
-        throw LlmToolExecutionError.build('write', `Path "${path}" is not to be allowed to write. Examinate the task again`);
+        throw LlmToolExecutionError.build(`Path "${path}" is not to be allowed to write. Examinate the task again`);
       }
 
       const file = await File.build(path, {
@@ -37,6 +37,6 @@ export default LlmToolCompiler
       context.project.files.add(path);
       return `File "${path}" written successfully`;
     } catch (error: unknown) {
-      throw LlmToolExecutionError.build('write', error);
+      throw LlmToolExecutionError.build(error);
     }
   });

@@ -22,6 +22,6 @@ export default LlmToolCompiler
 
       return result.stdout;
     } catch (error: unknown) {
-      throw LlmToolExecutionError.build('npm', error);
+      throw LlmToolExecutionError.build(error);
     }
   });

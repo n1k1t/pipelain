@@ -27,7 +27,7 @@ export const compileDebug = async <TSchema>(step: PipelineAiStep, parameters: {
   const file = await File.build([
     '.pipelain',
     'debug',
-    `${dayjs(step.pipeline.session.timestamp).format('YYYY-MM-DD--HH-mm-ss')}--${step.pipeline.session.id}`,
+    `${dayjs(step.pipeline.session.meta.timestamp).format('YYYY-MM-DD--HH-mm-ss')}--${step.pipeline.session.id}`,
     `${step.pipeline.session.meta.counters.steps(0)}.${title}.md`,
   ]);
 

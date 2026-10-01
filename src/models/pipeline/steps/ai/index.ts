@@ -18,10 +18,10 @@ import { IPipelineStepSource, PipelineStep, PipelineStepCompiler } from '../mode
 import { IPipelineConfiguration, TPipelineContentPredicate } from '../../types';
 import { TPipelineStepNestedHandler, TPipelineStepType } from '../types';
 import { skill, attachment, TLlmProviderReasoning } from '../../../llm';
-import { buildMetaManager, cast, disposify } from '../../../../utils';
 import { PipelineStepCompilationError } from '../../errors';
 import { PipelineParameters } from '../../parameters';
 import { VirtualFileSystem } from '../../../vfs';
+import { cast, disposify } from '../../../../utils';
 import { PipelineAiError } from './errors';
 import { compileDebug } from './utils';
 import { LlmProvider } from '../../../llm/providers/model';
@@ -96,10 +96,10 @@ export class PipelineAiStep<
   TSchema = any
 > extends PipelineStep<'ai', TConfiguration, TSchema, IDefinition<TConfiguration>> {
   public async run(parameters: PipelineParameters<TConfiguration>): Promise<TSchema> {
-    const meta = buildMetaManager();
     const vfs = VirtualFileSystem.build();
 
-    this.pipeline.session.emit('step:run', { step: this, meta: meta.init() });
+    this.meta.actualize('INIT');
+    this.pipeline.session.emit('step:run', { step: this });
 
     try {
       const llm = typeof this.definition.llm === 'function'
@@ -282,10 +282,13 @@ export class PipelineAiStep<
         },
       });
 
-      this.pipeline.session.emit('step:run', { step: this, meta: meta.done() });
+      this.meta.actualize('DONE');
+      this.pipeline.session.emit('step:run', { step: this });
+
       return result;
     } catch (error: unknown) {
-      this.pipeline.session.emit('step:run', { step: this, meta: meta.error() });
+      this.meta.actualize('ERROR');
+      this.pipeline.session.emit('step:run', { step: this });
 
       throw error;
     }
@@ -507,6 +510,7 @@ export class PipelineAiStep<
         throw PipelineAiError.build({ type: 'EMPTY_OUTPUT', llm: provided.llm });
       }
 
+      this.meta.actualize('DONE');
       this.pipeline.session.emit('step:ai:complete', {
         actions,
         output,
@@ -514,7 +518,6 @@ export class PipelineAiStep<
         step: this,
         llm: provided.llm,
         usage: await stream.usage,
-
 
         messages: {
           system: provided.messages.system,
@@ -543,6 +546,7 @@ export class PipelineAiStep<
       const fallback = enough ? provided.llm.next() : null;
 
       if (!fallback && enough) {
+        this.meta.actualize('ERROR');
         this.pipeline.session.emit('step:ai:error', {
           actions,
 
@@ -566,7 +570,9 @@ export class PipelineAiStep<
           new: fallback.provider,
         });
 
+        this.meta.actualize('PENDING');
         this.pipeline.session.emit('step:ai:fallback', action);
+
         actions.push(action);
       }
 

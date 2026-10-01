@@ -16,6 +16,7 @@ export * from './models/pipeline/steps/ai/errors';
 export * from './models/project';
 export * from './models/file';
 export * from './models/bash';
+export * from './models/meta';
 
 export * from './models/content/factory';
 export * from './models/content/types';

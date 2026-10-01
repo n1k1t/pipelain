@@ -17,12 +17,12 @@ export default LlmToolCompiler
   .execute(({ context }) => async ({ path: location }) => {
     try {
       if (!checkPatternIsRestricted(location)) {
-        throw LlmToolExecutionError.build('mkdir', `Path "${location}" is going to out of scope the project`);
+        throw LlmToolExecutionError.build(`Path "${location}" is going to out of scope the project`);
       }
 
       await fs.mkdir(path.join(context.project.cwd, location), { recursive: true });
       return `Directory "${location}" created successfully`;
     } catch (error: unknown) {
-      throw LlmToolExecutionError.build('mkdir', error);
+      throw LlmToolExecutionError.build(error);
     }
   });

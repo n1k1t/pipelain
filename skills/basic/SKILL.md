@@ -35,7 +35,7 @@ Used to create different types of steps and retrieve tools or skills:
 General-purpose utilities:
 - `content`: `ContentFactory` instance to create structured prompt content (articles, tasks, rules, attachments, files, globs).
 - `bash`: Execute shell commands on the local machine.
-- `log`: Emit log events for the current pipeline session.
+- `log`: Emit `INFO` log events for the current pipeline session (shown in stdout and HTML reports).
 
 ### `context`
 Shared state and configuration:
@@ -365,9 +365,30 @@ pipeline.step('mcp_research', ({ factory }) => factory
 );
 ```
 
+### Custom Model Routing
+
+Route models matched by a minimatch pattern to a custom provider with `LlmRouter.register`.
+
+```ts
+import { LlmRouter, llm } from '@n1k1t/pipelain';
+
+const router = LlmRouter
+  .build()
+  .register('corp-*', (model) => llm.providers.LlmProxyProvider.build(model, {
+    name: 'corp',
+    connection: { key: process.env.CORP_API_KEY!, url: 'https://llm.corp.local/v1' },
+  }));
+
+pipeline.step('analysis', ({ factory }) => factory
+  .ai('Corp Analysis')
+  .llm(() => router.provide('corp-gpt-4o'))
+  .prompt(['...'])
+);
+```
+
 ### Custom LLM Tools
 
-Create and integrate your own custom tools using `LlmToolCompiler`.
+Create and integrate your own custom tools using `LlmToolCompiler`. Throw `LlmToolExecutionError.build(reasonOrError)` inside `execute` to report a failure back to the AI.
 
 ```ts
 import z from 'zod';
@@ -421,8 +442,9 @@ Review the tasks and workflows that need to be accomplished by the AI:
 
 ### 3. Verification
 
-- Enable debug mode `.debug()` on a step to mock execution and save the generated prompts into `.pipelain/${timestamp}-${session-id}/${step-title}.md` for inspection.
+- Enable debug mode `.debug()` on a step to mock execution and save the generated prompts into `.pipelain/debug/YYYY-MM-DD--HH-mm-ss--<session-id>/<step-number>.<step-trace>.md` for inspection.
 - Monitor log events by compiling the pipeline with `stdout: stdout.console`.
+- Enable `.report()` on the pipeline (or `PIPELAIN_FLAGS_REPORT=true`) to save an HTML report with steps, tool calls, logs and token usage into `.pipelain/reports/`.
 - Run TS type checking command `npm run build:check` to ensure correctness of Zod schemas and step definitions.
 
 ### 4. Refinement

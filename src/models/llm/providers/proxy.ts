@@ -6,7 +6,7 @@ import { SetPartialKeys } from '../../../../types';
 import { LlmProvider } from './model';
 
 export class LlmProxyProvider extends LlmProvider<object> {
-  public name: string = 'proxy';
+  public name: string = this.provided.name ?? 'proxy';
 
   public tag: LanguageModel = (() => {
     if (this.model.includes('gpt')) {
@@ -27,8 +27,13 @@ export class LlmProxyProvider extends LlmProvider<object> {
     })(this.model);
   })();
 
+  constructor(model: string, protected provided: LlmProvider<object>['provided'] & { name?: string }) {
+    super(model, provided);
+  }
+
   public clone(): this {
     const clone = LlmProxyProvider.build(this.model, {
+      name: this.name,
       temperature: this.temperature,
       connection: this.connection,
       reasoning: this.reasoning,

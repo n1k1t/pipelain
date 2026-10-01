@@ -5,7 +5,6 @@ import type { PipelineCompiler } from '../model';
 import { IPipelineStepDefinition, IPipelineStepSource, PipelineStep, PipelineStepCompiler } from './model';
 import { PipelineStepCompilationError } from '../errors';
 import { PipelineParameters } from '../parameters';
-import { buildMetaManager } from '../../../utils';
 import { chunkify } from '../../../utils';
 
 interface IDefinition<TConfiguration extends IPipelineConfiguration> extends IPipelineStepDefinition {
@@ -97,7 +96,6 @@ export class PipelineSwarmStep<
   TSchema extends PromiseSettledResult<any>[] | Record<string, PromiseSettledResult<any>> = PromiseSettledResult<any>[]
 > extends PipelineStep<'swarm', TConfiguration, TSchema, IDefinition<TConfiguration>> {
   public async run(parameters: PipelineParameters<TConfiguration>): Promise<TSchema> {
-    const meta = buildMetaManager();
     const exec = async (subtask: PipelineStepCompiler | PipelineCompiler) => {
       const compiled = await subtask.compile({ pipeline: this.pipeline, parent: this });
 
@@ -106,7 +104,8 @@ export class PipelineSwarmStep<
         : compiled.run(undefined);
     };
 
-    this.pipeline.session.emit('step:run', { step: this, meta: meta.init() });
+    this.meta.actualize('INIT');
+    this.pipeline.session.emit('step:run', { step: this });
 
     try {
       if (this.definition.map) {
@@ -117,7 +116,9 @@ export class PipelineSwarmStep<
         const handled = await chunkify(Object.keys(map), this.definition.limit ?? Infinity, (key) => exec(map[key]));
         const result = <TSchema>Object.fromEntries(handled.map((subtask) => [subtask.payload, subtask.result]));
 
-        this.pipeline.session.emit('step:run', { step: this, meta: meta.done() });
+        this.meta.actualize('DONE');
+        this.pipeline.session.emit('step:run', { step: this });
+
         return result;
       }
 
@@ -128,10 +129,14 @@ export class PipelineSwarmStep<
       const handled = await chunkify(subtasks, this.definition.limit ?? Infinity, exec);
       const result = <TSchema>handled.map((subtask) => subtask.result);
 
-      this.pipeline.session.emit('step:run', { step: this, meta: meta.done() });
+      this.meta.actualize('DONE');
+      this.pipeline.session.emit('step:run', { step: this });
+
       return result;
     } catch (error: unknown) {
-      this.pipeline.session.emit('step:run', { step: this, meta: meta.error() });
+      this.meta.actualize('ERROR');
+      this.pipeline.session.emit('step:run', { step: this });
+
       throw error;
     }
   }

@@ -35,11 +35,11 @@ export default LlmToolCompiler
 
     try {
       if (!checkPatternIsRestricted(location)) {
-        throw LlmToolExecutionError.build('edit', `Path "${location}" is going to out of scope the project`);
+        throw LlmToolExecutionError.build(`Path "${location}" is going to out of scope the project`);
       }
 
       if (options.allowed && !options.allowed.some((pattern) => minimatch(location, pattern, { matchBase: true }))) {
-        throw LlmToolExecutionError.build('edit', `Path "${location}" is not to be allowed to edit. Examinate the task again`);
+        throw LlmToolExecutionError.build(`Path "${location}" is not to be allowed to edit. Examinate the task again`);
       }
 
       mutex.release = await lock(path.join(context.project.cwd, location), {
@@ -59,7 +59,7 @@ export default LlmToolCompiler
 
       return `File "${location}" edited successfully`;
     } catch (error: unknown) {
-      throw LlmToolExecutionError.build('edit', error);
+      throw LlmToolExecutionError.build(error);
     } finally {
       await mutex.release?.();
     }

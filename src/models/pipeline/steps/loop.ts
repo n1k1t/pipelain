@@ -6,7 +6,6 @@ import type { TFunction } from '../../../../types';
 import { IPipelineStepDefinition, IPipelineStepSource, PipelineStep, PipelineStepCompiler } from './model';
 import { PipelineStepCompilationError } from '../errors';
 import { PipelineParameters } from '../parameters';
-import { buildMetaManager } from '../../../utils';
 
 export type TPipelineLoopStepVerdictStatus = 'initial' | 'fulfilled' | 'pending' | 'rejected' | 'voided';
 
@@ -149,8 +148,8 @@ export class PipelineLoopStep<
   TSchema extends TPipelineLoopStepSchema = TPipelineLoopStepSchema
 > extends PipelineStep<'loop', TConfiguration, TSchema, IDefinition<TConfiguration>> {
   public async run(parameters: PipelineParameters<TConfiguration>): Promise<TSchema> {
-    const meta = buildMetaManager();
-    this.pipeline.session.emit('step:run', { step: this, meta: meta.init() });
+    this.meta.actualize('INIT');
+    this.pipeline.session.emit('step:run', { step: this });
 
     try {
       const limit = this.definition.limit ?? 5;
@@ -174,7 +173,9 @@ export class PipelineLoopStep<
         ]);
 
         if (checked.status === 'rejected') {
-          this.pipeline.session.emit('step:run', { step: this, meta: meta.error() });
+          this.meta.actualize('ERROR');
+          this.pipeline.session.emit('step:run', { step: this });
+
           return <TSchema>checked;
         }
         if (checked.value.status === 'pending') {
@@ -184,7 +185,8 @@ export class PipelineLoopStep<
           continue;
         }
 
-        this.pipeline.session.emit('step:run', { step: this, meta: meta.done() });
+        this.meta.actualize('DONE');
+        this.pipeline.session.emit('step:run', { step: this });
 
         return <TSchema>{
           status: checked.value.status,
@@ -192,13 +194,16 @@ export class PipelineLoopStep<
         };
       }
 
-      this.pipeline.session.emit('step:run', { step: this, meta: meta.done() });
+      this.meta.actualize('DONE');
+      this.pipeline.session.emit('step:run', { step: this });
 
       return <TPipelineLoopStepSchema & TSchema>{
         status: 'voided',
       };
     } catch (error: unknown) {
-      this.pipeline.session.emit('step:run', { step: this, meta: meta.error() });
+      this.meta.actualize('ERROR');
+      this.pipeline.session.emit('step:run', { step: this });
+
       throw error;
     }
   }

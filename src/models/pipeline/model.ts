@@ -2,13 +2,14 @@ import z, { ZodType } from 'zod/v3';
 
 import { IPipelineConfiguration, TPipelineCompilerConfigurationStep, TPipelineStepGeneralHandler } from './types';
 import { PipelineStep, PipelineStepCompiler, TPipelineStepNestedHandler } from './steps';
-import { buildMetaManager, cast, disposify } from '../../utils';
 import { PipelineParameters } from './parameters';
+import { cast, disposify } from '../../utils';
 import { PipelineContext } from './context';
 import { PipelineSession } from './session';
 import { PipelineStdout } from './stdout';
 import { PipelineReport } from './report';
 import { Project } from '../project';
+import { Meta } from '../meta';
 
 import env from '../../env';
 
@@ -166,6 +167,8 @@ export class Pipeline<TConfiguration extends IPipelineConfiguration = any> {
   public session: PipelineSession = this.provided.session;
 
   public title: string = this.provided.title;
+  public meta = Meta.build();
+
   public flags: {
     report?: boolean;
     debug?: boolean;
@@ -192,7 +195,6 @@ export class Pipeline<TConfiguration extends IPipelineConfiguration = any> {
     this.context.input = input ?? this.context.input;
 
     const parameters = PipelineParameters.build(this);
-    const meta = buildMetaManager();
 
     await using report = disposify({
       entity: (this.flags.report && !this.parent) ? PipelineReport.build(this.session) : null,
@@ -200,7 +202,9 @@ export class Pipeline<TConfiguration extends IPipelineConfiguration = any> {
     });
 
     await this.schema.parseAsync(this.context.input);
-    this.session.emit('run', { pipeline: this, meta: meta.init() });
+
+    this.meta.actualize('INIT');
+    this.session.emit('run', { pipeline: this });
 
     for (const step of this.provided.steps) {
       if (step.type === 'named' && step.name in this.context.state) {
@@ -239,12 +243,16 @@ export class Pipeline<TConfiguration extends IPipelineConfiguration = any> {
 
     if (report.entity?.snapshots.length) {
       this.session.emit('log', {
+        level: 'DEBUG',
+
         pipeline: this,
         message: [`Report will be saved into [${report.entity.location}]`],
       });
     }
 
-    this.session.emit('run', { pipeline: this, meta: meta.done() });
+    this.meta.actualize('DONE');
+    this.session.emit('run', { pipeline: this });
+
     return this.context.state;
   }
 

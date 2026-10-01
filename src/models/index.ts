@@ -3,6 +3,7 @@ export * from './project';
 export * from './content';
 export * from './file';
 export * from './bash';
+export * from './meta';
 export * from './llm';
 export * from './vfs';
 export * from './rg';

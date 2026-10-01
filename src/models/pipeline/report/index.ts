@@ -16,7 +16,7 @@ export class PipelineReport {
   public location: string = path.join(
     '.pipelain',
     'reports',
-    `${dayjs(this.session.timestamp).format('YYYY-MM-DD--HH-mm-ss')}--${this.session.id}.html`
+    `${dayjs(this.session.meta.timestamp).format('YYYY-MM-DD--HH-mm-ss')}--${this.session.id}.html`
   );
 
   constructor(public session: PipelineSession) {}
@@ -32,11 +32,13 @@ export class PipelineReport {
 
     return hbs.compile(template)(cast<IPipelineReportTemplateData>({
       snapshots: this.snapshots.map((snapshot) => {
-        snapshot.actions = snapshot.actions.filter((action) =>
-          action.type === 'ai:reasoning' && !action.output.length
-            ? false
-            : true
-        );
+        if ('actions' in snapshot) {
+          snapshot.actions = snapshot.actions.filter((action) =>
+            action.type === 'ai:reasoning' && !action.output.length
+              ? false
+              : true
+          );
+        }
 
         return snapshot;
       }),
@@ -50,14 +52,16 @@ export class PipelineReport {
             .reduce((acc, usage) => {
               acc.completion += usage.completion;
               acc.prompt += usage.prompt;
+              acc.cached += usage.cached;
 
               return acc;
-            }, { completion: 0, prompt: 0 }),
+            }, { completion: 0, prompt: 0, cached: 0 }),
         },
       },
 
       session: {
-        timestamp: this.session.timestamp,
+        timestamp: this.session.meta.timestamp,
+        spent: this.session.meta.spent,
         id: this.session.id,
       },
 
@@ -85,10 +89,10 @@ export class PipelineReport {
     const report = new PipelineReport(session);
 
     session.on('step:ai:complete', (event) => report.snapshots.push({
-      state: 'DONE',
+      type: 'step:done',
 
-      timestamp: Date.now(),
       messages: event.messages,
+      meta: event.step.meta.toPlain(),
 
       actions: event.actions.map((action) => action.toPlain()),
       output: event.output,
@@ -111,10 +115,10 @@ export class PipelineReport {
     }));
 
     session.on('step:ai:error', (event) => report.snapshots.push({
-      state: 'ERROR',
+      type: 'step:error',
 
-      timestamp: Date.now(),
       messages: event.messages,
+      meta: event.step.meta.toPlain(),
 
       actions: event.actions.map((action) => action.toPlain()),
       error: event.error,
@@ -134,6 +138,24 @@ export class PipelineReport {
         },
       },
     }));
+
+    session.on('log', ({ message, level }) => {
+      if (!message.length || level === 'DEBUG') {
+        return null;
+      }
+
+      const formatted = message.length === 1 && typeof message[0] === 'object'
+        ? JSON.stringify(message[0], null, 2)
+        : message.map((segment) => typeof segment === 'object' ? JSON.stringify(segment) : segment).join(' ');
+
+      return report.snapshots.push({
+        level,
+
+        timestamp: Date.now(),
+        message: formatted,
+        type: 'log',
+      });
+    });
 
     return report;
   }

@@ -104,17 +104,17 @@ export default LlmToolCompiler
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw LlmToolExecutionError.build('fetch', `Request failed with status code: ${response.status}`);
+        throw LlmToolExecutionError.build(`Request failed with status code: ${response.status}`);
       }
 
       const contentLength = response.headers.get('content-length');
       if (contentLength && parseInt(contentLength) > MAX_RESPONSE_SIZE) {
-        throw LlmToolExecutionError.build('fetch', 'Response too large (exceeds 5MB limit)');
+        throw LlmToolExecutionError.build('Response too large (exceeds 5MB limit)');
       }
 
       const arrayBuffer = await response.arrayBuffer();
       if (arrayBuffer.byteLength > MAX_RESPONSE_SIZE) {
-        throw LlmToolExecutionError.build('fetch', 'Response too large (exceeds 5MB limit)');
+        throw LlmToolExecutionError.build('Response too large (exceeds 5MB limit)');
       }
 
       const contentType = response.headers.get('content-type') || '';
@@ -147,6 +147,6 @@ export default LlmToolCompiler
             : new Error(JSON.stringify(error))
         : new Error(String(error));
 
-      throw LlmToolExecutionError.build('fetch', formatted);
+      throw LlmToolExecutionError.build(formatted);
     }
   });

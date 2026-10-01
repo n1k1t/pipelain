@@ -21,15 +21,15 @@ export default LlmToolCompiler
   .execute(({ context, options }) => async ({ path: location }) => {
     try {
       if (!checkPatternIsRestricted(location)) {
-        throw LlmToolExecutionError.build('rm', `Path "${location}" is going to out of scope the project`);
+        throw LlmToolExecutionError.build(`Path "${location}" is going to out of scope the project`);
       }
       if (options.allowed && !options.allowed.some((pattern) => minimatch(location, pattern, { matchBase: true }))) {
-        throw LlmToolExecutionError.build('rm', `Path "${location}" is not to be allowed to edit. Examinate the task again`);
+        throw LlmToolExecutionError.build(`Path "${location}" is not to be allowed to edit. Examinate the task again`);
       }
 
       const stats = await fs.stat(path.join(context.project.cwd, location)).catch((): null => null);
       if (!stats) {
-        throw LlmToolExecutionError.build('rm', `Path "${location}" does not exist`);
+        throw LlmToolExecutionError.build(`Path "${location}" does not exist`);
       }
 
       stats.isDirectory()
@@ -39,6 +39,6 @@ export default LlmToolCompiler
       context.project.files.rm(location);
       return `Path "${location}" deleted successfully`;
     } catch (error: unknown) {
-      throw LlmToolExecutionError.build('rm', error);
+      throw LlmToolExecutionError.build(error);
     }
   });

@@ -1,6 +1,7 @@
 import { LanguageModelUsage } from 'ai';
 import EventEmitter from 'events';
 
+import type { TPipelineLogLevel } from './types';
 import type { LlmProvider } from '../llm';
 import type { Pipeline } from './model';
 import type {
@@ -12,12 +13,7 @@ import type {
   TPipelineAiStepAction,
 } from './steps';
 
-import { buildCounter, cast } from '../../utils';
-
-export interface IPipelineSessionEventMeta {
-  state: 'INIT' | 'PENDING' | 'DONE' | 'ERROR';
-  spent: number;
-}
+import { buildCounter, cast, extractLlmUsageTokens } from '../../utils';
 
 export interface IPipelineSessionEvents {
   'step:ai:reasoning': [PipelineAiReasoningAction];
@@ -51,48 +47,47 @@ export interface IPipelineSessionEvents {
     };
   }];
 
-  'step:run': [{
-    step: PipelineStep;
-    meta: IPipelineSessionEventMeta;
-  }];
-
-  'run': [{
-    pipeline: Pipeline;
-    meta: IPipelineSessionEventMeta;
-  }];
+  'step:run': [{ step: PipelineStep }];
+  'run': [{ pipeline: Pipeline }];
 
   'log': [{
+    level: TPipelineLogLevel;
+
     pipeline: Pipeline;
     message: unknown[];
-  }];
-
-  'warning': [{
-    message: string[];
   }];
 }
 
 export class PipelineSession extends EventEmitter<IPipelineSessionEvents> {
   public TEvents!: IPipelineSessionEvents;
 
-  public timestamp: number = Date.now();
-  public id: string = this.timestamp.toString(32);
-
   public meta = {
+    timestamp: Date.now(),
+    spent: 0,
+
     counters: {
       steps: buildCounter(),
     },
 
     usage: {
-      llm: cast<Record<string, { prompt: number; completion: number }>>({}),
+      llm: cast<Record<string, { prompt: number; cached: number; completion: number }>>({}),
     },
   };
+
+  public id: string = this.meta.timestamp.toString(32);
 
   static build(): PipelineSession {
     const session = new PipelineSession();
 
-    session.on('step:run', ({ meta }) => {
-      if (meta.state === 'INIT') {
+    session.on('step:run', ({ step }) => {
+      if (step.meta.is('INIT')) {
         session.meta.counters.steps();
+      }
+    });
+
+    session.on('run', ({ pipeline }) => {
+      if (!pipeline.parent && pipeline.meta.is(['DONE', 'ERROR'])) {
+        session.meta.spent += pipeline.meta.spent;
       }
     });
 
@@ -100,16 +95,16 @@ export class PipelineSession extends EventEmitter<IPipelineSessionEvents> {
       const key = [llm.name, llm.model].join('/');
       const section = session.meta.usage.llm[key] ?? {
         prompt: 0,
+        cached: 0,
         completion: 0,
       };
 
-      if (usage.inputTokens) {
-        section.prompt += usage.inputTokens;
-      }
-      if (usage.outputTokens) {
-        section.completion += usage.outputTokens;
-      }
+      const tokens = extractLlmUsageTokens(usage);
 
+      section.prompt += tokens.prompt;
+      section.cached += tokens.cached;
+
+      section.completion += tokens.completion;
       session.meta.usage.llm[key] = section;
     });
 

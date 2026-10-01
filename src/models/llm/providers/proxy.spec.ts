@@ -207,3 +207,13 @@ it('should clone the provider with deep copied fallback providers', () => {
   const cloned = provider.clone();
   expect(cloned.fallback?.providers).not.toBe(fallback.providers);
 });
+
+it('should use custom name provided in build parameters and keep it on clone', () => {
+  const provider = LlmProxyProvider.build('claude-sonet-5', {
+    connection: { key: 'key', url: 'url' },
+    name: 'litellm',
+  });
+
+  expect(provider.name).toBe('litellm');
+  expect(provider.clone().name).toBe('litellm');
+});

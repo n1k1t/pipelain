@@ -1,8 +1,10 @@
 import type { LanguageModelUsage } from 'ai';
 
 import type { PipelineAiError, TPipelineAiStepAction } from '../steps';
+import type { TPipelineLogLevel } from '../types';
 import type { PipelineSession } from '../session';
 import type { LlmProvider } from '../../llm';
+import type { Meta } from '../../meta';
 
 interface TPipelineReportSnapshotStep {
   title: string;
@@ -22,9 +24,9 @@ export interface TPipelineReportSnapshotMessages {
 
 export type TPipelineReportSnapshot =
   | {
-    state: 'ERROR';
-    timestamp: number;
+    type: 'step:error';
 
+    meta: Meta['TPlain'];
     step: TPipelineReportSnapshotStep;
     llm: TPipelineReportSnapshotLlm;
 
@@ -33,9 +35,9 @@ export type TPipelineReportSnapshot =
     error: PipelineAiError;
   }
   | {
-    state: 'DONE';
-    timestamp: number;
+    type: 'step:done';
 
+    meta: Meta['TPlain'];
     step: TPipelineReportSnapshotStep;
     llm: TPipelineReportSnapshotLlm;
 
@@ -43,6 +45,13 @@ export type TPipelineReportSnapshot =
     actions: TPipelineAiStepAction['TPlain'][];
     output: unknown;
     usage: LanguageModelUsage;
+  }
+  | {
+    type: 'log';
+    level: TPipelineLogLevel;
+
+    timestamp: number;
+    message: string;
   };
 
 export interface IPipelineReportTemplateData {
@@ -57,6 +66,7 @@ export interface IPipelineReportTemplateData {
 
   session: {
     timestamp: number;
+    spent: number;
     id: string;
   };
 

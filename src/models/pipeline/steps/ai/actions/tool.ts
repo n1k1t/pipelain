@@ -72,7 +72,7 @@ export class PipelineAiToolAction extends PipelineAiAction {
     id: string;
 
     name: string;
-    meta: PipelineAiToolAction['meta'];
+    meta: PipelineAiToolAction['meta']['TPlain'];
     input: TInput;
 
     trace?: object;
@@ -237,7 +237,8 @@ export class PipelineAiToolAction extends PipelineAiAction {
       };
     }
 
-    return this.actualize(state);
+    this.meta.actualize(state);
+    return this;
   }
 
   public toPlain(): PipelineAiToolAction['TPlain'] {
@@ -246,8 +247,9 @@ export class PipelineAiToolAction extends PipelineAiAction {
       id: this.id,
 
       name: this.name,
-      meta: this.meta,
       input: this.input,
+
+      meta: this.meta.toPlain(),
 
       trace: this.trace.final ?? this.trace.initial.providerMetadata,
       output: this.output,

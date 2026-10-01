@@ -16,7 +16,7 @@ export class PipelineAiReasoningAction extends PipelineAiAction {
     type: 'ai:reasoning';
     id: string;
 
-    meta: PipelineAiReasoningAction['meta'];
+    meta: PipelineAiReasoningAction['meta']['TPlain'];
     output: string;
 
     trace?: object;
@@ -75,7 +75,8 @@ export class PipelineAiReasoningAction extends PipelineAiAction {
     this.output += fragment.text;
     this.delta = fragment.text;
 
-    return this.actualize('PENDING');
+    this.meta.actualize('PENDING');
+    return this;
   }
 
   public complete(fragment: TEndFragment): this {
@@ -84,7 +85,9 @@ export class PipelineAiReasoningAction extends PipelineAiAction {
     }
 
     this.output = this.output.trim();
-    return this.actualize('DONE');
+
+    this.meta.actualize('DONE');
+    return this;
   }
 
   public toPlain(): PipelineAiReasoningAction['TPlain'] {
@@ -92,10 +95,10 @@ export class PipelineAiReasoningAction extends PipelineAiAction {
       type: 'ai:reasoning',
       id: this.id,
 
-      meta: this.meta,
       output: this.output,
-
       trace: this.trace.final ?? this.trace.initial,
+
+      meta: this.meta.toPlain(),
 
       llm: {
         name: this.llm.name,

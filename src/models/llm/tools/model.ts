@@ -19,11 +19,11 @@ export class LlmToolCompilationError extends Error {
 }
 
 export class LlmToolExecutionError extends Error {
-  constructor(public name: string, reason: string) {
-    super(`Execution of [${name}] has failed: ${reason}`);
+  constructor(reason: string) {
+    super(`Execution failed: ${reason}`);
   }
 
-  static build(name: string, source: unknown): LlmToolExecutionError {
+  static build(source: unknown): LlmToolExecutionError {
     const reason = source instanceof BashExecError
       ? source.stderr
       : source instanceof Error
@@ -32,7 +32,7 @@ export class LlmToolExecutionError extends Error {
           ? source.join('. ')
           : String(source);
 
-    return new LlmToolExecutionError(name, reason);
+    return new LlmToolExecutionError(reason);
   }
 }
 

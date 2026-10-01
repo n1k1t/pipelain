@@ -1,14 +1,11 @@
-import type { IPipelineSessionEventMeta } from '../../../session';
 import type { PipelineAiStep } from '../index';
 
 import { buildTimeSpendMarker } from '../../../../../utils';
+import { Meta } from '../../../../meta';
 
 export abstract class PipelineAiAction {
   public timestamp: number = Date.now();
-  public meta: IPipelineSessionEventMeta = {
-    state: 'INIT',
-    spent: 0,
-  };
+  public meta = Meta.build();
 
   protected marker = buildTimeSpendMarker(this.timestamp);
 
@@ -17,11 +14,4 @@ export abstract class PipelineAiAction {
   /** Provides model metadata */
   public abstract provide(kind: 'initial' | 'final'): object | null;
   public abstract toPlain(): object;
-
-  public actualize(state: IPipelineSessionEventMeta['state']): this {
-    this.meta.spent = this.marker();
-    this.meta.state = state;
-
-    return this;
-  }
 }

@@ -25,8 +25,8 @@ export default LlmToolCompiler
         return file.content;
       }
 
-      throw LlmToolExecutionError.build('attachment', `Attachment with key "${key}" not found`);
+      throw LlmToolExecutionError.build(`Attachment with key "${key}" not found`);
     } catch (error: unknown) {
-      throw LlmToolExecutionError.build('attachment', error);
+      throw LlmToolExecutionError.build(error);
     }
   });

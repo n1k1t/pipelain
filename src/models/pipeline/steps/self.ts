@@ -5,7 +5,6 @@ import { TPipelineStepNestedHandler, TPipelineStepType } from './types';
 import { PipelineStepCompilationError } from '../errors';
 import { IPipelineConfiguration } from '../types';
 import { PipelineParameters } from '../parameters';
-import { buildMetaManager } from '../../../utils';
 
 interface IDefinition<TConfiguration extends IPipelineConfiguration, TSchema> extends IPipelineStepDefinition {
   exec: TPipelineStepNestedHandler<TConfiguration, TSchema>;
@@ -66,9 +65,8 @@ export class PipelineSelfStep<
   TSchema = any
 > extends PipelineStep<'self', TConfiguration, TSchema, IDefinition<TConfiguration, TSchema>> {
   public async run(parameters: PipelineParameters<TConfiguration>): Promise<TSchema> {
-    const meta = buildMetaManager();
-
-    this.pipeline.session.emit('step:run', { step: this, meta: meta.init() });
+    this.meta.actualize('INIT');
+    this.pipeline.session.emit('step:run', { step: this });
 
     try {
       const schema = this.definition.schema
@@ -80,10 +78,14 @@ export class PipelineSelfStep<
       const result = await this.definition.exec(parameters);
       await schema?.parseAsync(result);
 
-      this.pipeline.session.emit('step:run', { step: this, meta: meta.done() });
+      this.meta.actualize('DONE');
+      this.pipeline.session.emit('step:run', { step: this });
+
       return result;
     } catch (error: unknown) {
-      this.pipeline.session.emit('step:run', { step: this, meta: meta.error() });
+      this.meta.actualize('ERROR');
+      this.pipeline.session.emit('step:run', { step: this });
+
       throw error;
     }
   }

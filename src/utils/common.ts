@@ -1,4 +1,7 @@
 import _ from 'lodash';
+
+import type { LanguageModelUsage } from 'ai';
+
 import { TFunction } from '../../types';
 
 /**
@@ -163,4 +166,19 @@ export const parseJsonSafe = <T extends object>(serializedJson: string) => {
       error: error instanceof Error ? error : new Error('Unknown'),
     };
   }
+};
+
+/** Splits LLM usage into non-cached prompt, cached and completion tokens */
+export const extractLlmUsageTokens = (usage: LanguageModelUsage) => {
+  const prompt = usage.inputTokenDetails?.noCacheTokens ?? usage.inputTokens ?? 0;
+  const cached = (usage.inputTokenDetails?.cacheReadTokens ?? 0) + (usage.inputTokenDetails?.cacheWriteTokens ?? 0);
+  const completion = usage.outputTokens ?? 0;
+
+  return {
+    total: prompt + cached + completion,
+
+    prompt,
+    cached,
+    completion,
+  };
 };

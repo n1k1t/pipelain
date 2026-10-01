@@ -25,11 +25,11 @@ export default LlmToolCompiler
     try {
       const skill = context.project.sources.skills[name];
       if (!skill) {
-        throw LlmToolExecutionError.build('skill', `Skill "${name}" not found`);
+        throw LlmToolExecutionError.build(`Skill "${name}" not found`);
       }
 
       return skill.content;
     } catch (error: unknown) {
-      throw LlmToolExecutionError.build('skill', error);
+      throw LlmToolExecutionError.build(error);
     }
   });

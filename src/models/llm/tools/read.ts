@@ -43,7 +43,7 @@ export default LlmToolCompiler
   .execute(({ context }) => async ({ path, start, end }) => {
     try {
       if (!checkPatternIsRestricted(path)) {
-        throw LlmToolExecutionError.build('read', `Path "${path}" is going to out of scope the project`);
+        throw LlmToolExecutionError.build(`Path "${path}" is going to out of scope the project`);
       }
 
       const file = await File.build(path, {
@@ -61,7 +61,7 @@ export default LlmToolCompiler
       const content = sliced.join('\n');
 
       if (content.length > 50000) {
-        throw LlmToolExecutionError.build('read', [
+        throw LlmToolExecutionError.build([
           'The file content is too large (over 50000 chars).',
           'Please use a smaller range with "start" and "end" parameters, or use the "grep" tool to find the relevant context',
         ]);
@@ -69,6 +69,6 @@ export default LlmToolCompiler
 
       return content;
     } catch (error: unknown) {
-      throw LlmToolExecutionError.build('read', error);
+      throw LlmToolExecutionError.build(error);
     }
   });

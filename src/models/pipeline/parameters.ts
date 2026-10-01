@@ -21,7 +21,12 @@ export class PipelineParameters<TConfiguration extends IPipelineConfiguration = 
     bash: Bash.build({ cwd: this.pipeline.context.project.cwd }),
 
     /** Logs provided message */
-    log: (...message: unknown[]) => this.session.emit('log', { message, pipeline: this.pipeline }),
+    log: (...message: unknown[]) => this.session.emit('log', {
+      message,
+
+      pipeline: this.pipeline,
+      level: 'INFO',
+    }),
   };
 
   constructor(public pipeline: Pipeline<TConfiguration>) {}

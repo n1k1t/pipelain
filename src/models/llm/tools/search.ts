@@ -125,7 +125,7 @@ export default LlmToolCompiler
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw LlmToolExecutionError.build('search', `Search error (${response.status}): ${errorText}`);
+        throw LlmToolExecutionError.build(`Search error (${response.status}): ${errorText}`);
       }
 
       const responseText = await response.text();
@@ -143,6 +143,6 @@ export default LlmToolCompiler
 
       return 'No search results found. Please try a different query.';
     } catch (error: unknown) {
-      throw LlmToolExecutionError.build('search', error);
+      throw LlmToolExecutionError.build(error);
     }
   });

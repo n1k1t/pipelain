@@ -33,12 +33,12 @@ export default LlmToolCompiler
   .execute(({ context }) => async ({ path: location }) => {
     try {
       if (!checkPatternIsRestricted(location)) {
-        throw LlmToolExecutionError.build('ls', `Path "${location}" is going to out of scope the project`);
+        throw LlmToolExecutionError.build(`Path "${location}" is going to out of scope the project`);
       }
 
       const entries = await fs.readdir(path.join(context.project.cwd, location), { withFileTypes: true });
       return entries.map((entry) => `${entry.name}${entry.isDirectory() ? '/' : ''}`).join('\n');
     } catch (error: unknown) {
-      throw LlmToolExecutionError.build('ls', error);
+      throw LlmToolExecutionError.build(error);
     }
   });

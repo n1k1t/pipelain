@@ -22,13 +22,21 @@
           PipelAIn Report
         </h1>
         <div class="session-info">
-          <div class="info-item">
-            <span class="info-label">Session ID:</span>
-            <span class="info-value text-mono">{{session.id}}</span>
+          <div class="info-column">
+            <div class="info-item">
+              <span class="info-label">Session ID:</span>
+              <span class="info-value text-mono">{{session.id}}</span>
+            </div>
           </div>
-          <div class="info-item">
-            <span class="info-label">Timestamp:</span>
-            <span class="info-value">{{formatDate session.timestamp}} {{formatTime session.timestamp}}</span>
+          <div class="info-column">
+            <div class="info-item">
+              <span class="info-label">Timestamp:</span>
+              <span class="info-value">{{formatDate session.timestamp}} {{formatTime session.timestamp}}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Spent:</span>
+              <span class="info-value">{{formatDuration session.spent}}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -37,11 +45,15 @@
       <div class="metrics-grid">
         <div class="metric-card">
           <div class="metric-label">Total Tokens</div>
-          <div class="metric-value">{{sum usage.llm.total.prompt usage.llm.total.completion}}</div>
+          <div class="metric-value">{{sum (sum usage.llm.total.prompt usage.llm.total.cached) usage.llm.total.completion}}</div>
         </div>
         <div class="metric-card">
           <div class="metric-label">Prompt Tokens</div>
           <div class="metric-value">{{usage.llm.total.prompt}}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Cached Tokens</div>
+          <div class="metric-value">{{usage.llm.total.cached}}</div>
         </div>
         <div class="metric-card">
           <div class="metric-label">Completion Tokens</div>
@@ -52,31 +64,69 @@
 
     <!-- Snapshots -->
     <main class="snapshots-section">
-      <h2 class="section-title">Steps <span class="text-muted">({{snapshots.length}})</span></h2>
+      <h2 class="section-title">Snapshots <span class="text-muted">({{snapshots.length}})</span></h2>
 
       <div class="snapshots-list">
         {{#each snapshots}}
-          <details class="snapshot-card {{#if error}}state-error{{else}}state-done{{/if}}">
+          {{#if (eq type "log")}}
+          <!-- Log -->
+          <details class="snapshot-card state-log log-{{level}}">
             <summary class="snapshot-summary">
               <div class="summary-left">
                 <span class="expand-arrow">▶</span>
-                <span class="step-title">{{step.title}}</span>
-              </div>
-              <div class="summary-right">
-                <span class="llm-tag text-muted">{{llm.name}}/{{llm.model}}</span>
-                {{#if error}}
-                  <span class="badge badge-error">ERROR</span>
-                {{else}}
-                  {{#if usage.totalTokens}}
-                    <span class="usage-tag">{{usage.totalTokens}} tokens</span>
-                  {{/if}}
-                  <span class="badge badge-success">DONE</span>
-                {{/if}}
-                <span class="time-tag text-muted">{{formatTime timestamp}}</span>
+                <span class="action-type-badge badge-log-{{level}}">{{level}}</span>
+                <span class="log-preview text-mono">{{message}}</span>
               </div>
             </summary>
 
             <div class="snapshot-content">
+              <pre class="log-message"><code>{{message}}</code></pre>
+            </div>
+          </details>
+          {{else}}
+          <details class="snapshot-card {{#if (eq type "step:error")}}state-error{{else}}state-done{{/if}}">
+            <summary class="snapshot-summary">
+              <div class="summary-left">
+                <span class="expand-arrow">▶</span>
+                {{#if (eq type "step:error")}}
+                  <span class="action-type-badge badge-error">ERROR</span>
+                {{else}}
+                  <span class="action-type-badge badge-success">DONE</span>
+                {{/if}}
+                <span class="step-title">{{step.title}}</span>
+              </div>
+              <div class="summary-right">
+                <span class="llm-tag text-muted">{{llm.name}}/{{llm.model}}</span>
+                {{#if (tokens usage "total")}}
+                  <span class="usage-tag">{{tokens usage "total"}} tokens</span>
+                {{/if}}
+                <span class="time-tag text-muted">{{formatDuration meta.spent}}</span>
+              </div>
+            </summary>
+
+            <div class="snapshot-content">
+              {{#if usage}}
+                <!-- Step Tokens -->
+                <div class="tokens-grid">
+                  <div class="token-cell">
+                    <span class="token-label">Total Tokens</span>
+                    <span class="token-value text-mono">{{tokens usage "total"}}</span>
+                  </div>
+                  <div class="token-cell">
+                    <span class="token-label">Prompt Tokens</span>
+                    <span class="token-value text-mono">{{tokens usage "prompt"}}</span>
+                  </div>
+                  <div class="token-cell">
+                    <span class="token-label">Cached Tokens</span>
+                    <span class="token-value text-mono">{{tokens usage "cached"}}</span>
+                  </div>
+                  <div class="token-cell">
+                    <span class="token-label">Completion Tokens</span>
+                    <span class="token-value text-mono">{{tokens usage "completion"}}</span>
+                  </div>
+                </div>
+              {{/if}}
+
               <!-- Step Metrics -->
               <div class="step-meta">
                 <div class="meta-row">
@@ -84,15 +134,14 @@
                   <span class="meta-value text-mono">{{llm.name}}/{{llm.model}}</span>
                 </div>
 
-                {{#if usage}}
-                  <div class="meta-row">
-                    <span class="meta-label">Usage:</span>
-                    <span class="meta-value text-mono">{{usage.inputTokens}} (prompt) + {{usage.outputTokens}} (completion)</span>
-                  </div>
-                {{/if}}
+                <div class="meta-row">
+                  <span class="meta-label">Started:</span>
+                  <span class="meta-value text-mono">{{formatTime meta.timestamp}}</span>
+                </div>
               </div>
 
-              {{#if error}}
+
+              {{#if (eq type "step:error")}}
                 <div class="error-box">
                   <div class="error-header">
                     <svg class="error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -167,6 +216,9 @@
                           {{#if (eq type "ai:tool")}}
                             <span class="action-type-badge badge-tool">TOOL</span>
                             <span class="action-name text-mono">{{name}}</span>
+                            {{#if (previewInput input)}}
+                              <span class="action-preview text-mono">{{previewInput input}}</span>
+                            {{/if}}
                           {{else if (eq type "ai:fallback")}}
                             <span class="action-type-badge badge-fallback">FALLBACK</span>
                             <span class="action-name text-mono">{{llm.old.model}}</span>
@@ -177,6 +229,7 @@
                         <div class="summary-right">
                           {{#if (eq type "ai:fallback")}}
                             <span class="badge badge-error">{{error.type}}</span>
+                            <span class="time-tag">{{formatDuration meta.spent}}</span>
                           {{else}}
                             <span class="llm-tag text-muted">{{llm.name}}/{{llm.model}}</span>
                             <span class="badge badge-{{meta.state}}">{{meta.state}}</span>
@@ -321,6 +374,7 @@
               </div>
             </div>
           </details>
+          {{/if}}
         {{/each}}
       </div>
     </main>

@@ -33,10 +33,12 @@ Powerful utility to build and execute type-safe AI pipelines with structured out
   - [AI Step with LLM Configuration](#ai-step-with-llm-configuration)
   - [AI Step with Fallback](#ai-step-with-fallback)
   - [Debugging AI Steps](#debugging-ai-steps)
+  - [Execution Reports](#execution-reports)
   - [Combining self and ai Steps](#combining-self-and-ai-steps)
   - [Parallel Execution with swarm](#parallel-execution-with-swarm)
   - [Iterative Execution with loop](#iterative-execution-with-loop)
   - [Multi-Provider Pipelines](#multi-provider-pipelines)
+  - [Custom Model Routing](#custom-model-routing)
   - [MCP (Model Context Protocol) Integration](#mcp-model-context-protocol-integration)
   - [Using Skills](#using-skills)
 - [Extensions](#extensions)
@@ -114,9 +116,11 @@ The following environment variables are supported:
 | --- | --- | --- |
 | `PIPELAIN_API_KEY` | API key for the LLM provider. | - |
 | `PIPELAIN_API_URL` | Custom API URL for the LLM provider. | - |
-| `PIPELAIN_SKILLS_PATHS` | Directories paths where LLM skills are stored (separated by `;`). | `~/.agents/skills` |
+| `PIPELAIN_SKILLS_PATHS` | Directories paths where LLM skills are stored (separated by `;`). | `./.agents/skills;~/.agents/skills` |
 | `PIPELAIN_MODEL` | Default LLM model to use. | `gemini-flash-latest` |
 | `PIPELAIN_PROVIDER` | LLM provider name (e.g., `google`, `openai`). | - |
+| `PIPELAIN_FLAGS_REPORT` | Save an HTML report of the pipeline execution. | `false` |
+| `PIPELAIN_FLAGS_DEBUG` | Enable debug mode for all AI steps. | `false` |
 | `EXA_API_KEY` | API key for Exa web search tools. | - |
 
 ## Pipeline Step Utilities
@@ -136,7 +140,7 @@ Used to create different types of steps:
 General-purpose utilities:
 - `content`: `ContentFactory` instance to create structured prompt content (articles, tasks, rules, attachments).
 - `bash`: Execute shell commands on the local machine.
-- `log`: Emit log events for the current pipeline session.
+- `log`: Emit `INFO` log events for the current pipeline session (shown in stdout and HTML reports).
 
 ### `context`
 Shared state and configuration:
@@ -209,13 +213,13 @@ To use a custom logger or override specific event handlers, use `PipelineStdout`
 import { PipelineStdout } from '@n1k1t/pipelain';
 
 const customStdout = PipelineStdout
-  .build(console) // Pass any logger with .info and .warn methods
-  .override('log', (event) => {
-    console.log(`[CUSTOM LOG] ${event.message}`);
+  .build(console) // Pass any logger with .info, .warn and .debug methods
+  .override('log', ({ level, message }) => {
+    console.log(`[${level}]`, ...message);
   })
-  .override('step:run', (event) => {
-    if (event.meta.state === 'SUCCESS') {
-      console.log(`Step ${event.step.title} finished in ${event.meta.spent}ms`);
+  .override('step:run', ({ step }) => {
+    if (step.meta.is('DONE')) {
+      console.log(`Step ${step.title} finished in ${step.meta.spent}ms`);
     }
   });
 
@@ -224,6 +228,17 @@ const customStdout = PipelineStdout
   await compiled.run('Hello');
 })();
 ```
+
+Each pipeline, step and AI action has a `meta` object with its execution state:
+
+| Property / Method | Description |
+| --- | --- |
+| `state` | `'INIT' \| 'PENDING' \| 'DONE' \| 'ERROR'` |
+| `spent` | Time spent since creation (ms). |
+| `timestamp` | Creation timestamp. |
+| `is(state \| state[])` | Checks the current state. |
+
+The `log` event has a `level` field: `'DEBUG' | 'INFO' | 'WARN'`. `utils.log(...)` emits `INFO`.
 
 ### Structured Prompt Content
 
@@ -353,7 +368,28 @@ You can use the `.debug()` method to inspect the prompts sent to the AI. When de
 )
 ```
 
-The prompt will be saved to: `.pipelain/${timestamp}-${session-id}/${step-title}.md`.
+The prompt will be saved to: `.pipelain/debug/YYYY-MM-DD--HH-mm-ss--<session-id>/<step-number>.<step-trace>.md`.
+
+### Execution Reports
+
+Use `.report()` on the pipeline compiler (or set `PIPELAIN_FLAGS_REPORT=true`) to save an HTML report of the AI steps execution:
+
+```ts
+const pipeline = PipelineCompiler
+  .build('Translate')
+  .report() // Enables HTML report
+  .input(z.string())
+  .step('translated', ({ factory, context }) => factory
+    .ai('Translating')
+    .prompt([`Translate "${context.input}" into Spanish`])
+  );
+```
+
+The report is saved into `.pipelain/reports/YYYY-MM-DD--HH-mm-ss--<session-id>.html` and includes:
+
+- AI steps with messages, actions (tools, reasoning, fallbacks), output and timing;
+- `INFO` and `WARN` logs emitted via `utils.log`;
+- token usage per provider and model (prompt, cached, completion) and total session time.
 
 ### Combining `self` and `ai` Steps
 
@@ -504,6 +540,29 @@ const pipeline = PipelineCompiler
   );
 ```
 
+### Custom Model Routing
+
+`LlmRouter` picks a provider by model name. Use `register` to route models matched by a [minimatch](https://github.com/isaacs/minimatch) pattern to your own provider:
+
+```ts
+import { LlmRouter, llm } from '@n1k1t/pipelain';
+
+const router = LlmRouter
+  .build()
+  .register('corp-*', (model) => llm.providers.LlmProxyProvider.build(model, {
+    name: 'corp', // Shown in usage stats and reports instead of "proxy"
+    connection: { key: process.env.CORP_API_KEY!, url: 'https://llm.corp.local/v1' },
+  }));
+
+pipeline.step('analysis', ({ factory }) => factory
+  .ai('Corp Analysis')
+  .llm(() => router.provide('corp-gpt-4o'))
+  .prompt(['...'])
+);
+```
+
+Registrations are checked in order and the first match wins. Unmatched models fall back to the default routing.
+
 ### MCP (Model Context Protocol) Integration
 
 You can integrate MCP servers into your pipeline steps. This allows the AI to use tools provided by external MCP servers. You can also filter which tools are enabled:
@@ -562,7 +621,7 @@ You can create custom tools for the AI using `LlmToolCompiler`. This allows the 
 
 ```ts
 import z from 'zod/v3';
-import { LlmToolCompiler } from '@n1k1t/pipelain';
+import { LlmToolCompiler, LlmToolExecutionError } from '@n1k1t/pipelain';
 
 // 1. Define the tool
 const weatherTool = LlmToolCompiler
@@ -575,6 +634,11 @@ const weatherTool = LlmToolCompiler
     condition: z.string()
   }))
   .execute(() => async ({ city }) => {
+    if (!city.trim()) {
+      // Errors are reported back to the AI as "Execution failed: <reason>"
+      throw LlmToolExecutionError.build('City name is empty');
+    }
+
     // Your implementation here
     return { temperature: 22, condition: 'Sunny' };
   });

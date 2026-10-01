@@ -1,37 +1,41 @@
-import type { IPipelineSessionEventMeta, PipelineSession } from '../session';
+import type { PipelineSession } from '../session';
 import type { TFunction } from '../../../../types';
 
 type TPipelineStdoutHooks = {
   [K in keyof PipelineSession['TEvents']]: TFunction<unknown, PipelineSession['TEvents'][K]>;
 };
 
-const checkIsCompleted = (state: IPipelineSessionEventMeta['state']) =>
-  state === 'DONE' || state === 'ERROR';
-
 export class PipelineStdout {
   private hooks: TPipelineStdoutHooks = {
     'step:ai:complete': () => null,
     'step:ai:error': () => null,
 
-    'warning': (event) => this.logger.info(...event.message),
+    'log': ({ pipeline, message, level }) => {
+      const method = level === 'DEBUG'
+        ? this.logger.debug
+        : level === 'INFO'
+          ? this.logger.info
+          : this.logger.warn;
 
-    'log': ({ pipeline, message }) => this.logger.info(
-      `${pipeline.trace().reverse().map((entity) => entity.title).join(' - ')}:`,
-      ...message,
+      return method.call(
+        this.logger,
+        `${pipeline.trace().reverse().map((entity) => entity.title).join(' - ')}:`,
+        ...message,
+      );
+    },
+
+    'run': ({ pipeline }) => pipeline.meta.is(['DONE', 'ERROR']) && this.logger.info(
+      `${pipeline.trace().reverse().map((entity) => entity.title).join(' - ')}: [${pipeline.meta.state}]`,
+      `in ${pipeline.meta.spent}ms`
     ),
 
-    'run': ({ pipeline, meta }) => checkIsCompleted(meta.state) && this.logger.info(
-      `${pipeline.trace().reverse().map((entity) => entity.title).join(' - ')}: [${meta.state}]`,
-      `in ${meta.spent}ms`
-    ),
-
-    'step:run': ({ step, meta }) => checkIsCompleted(meta.state) && this.logger.info(
-      `${step.trace().reverse().map((entity) => entity.title).join(' - ')}: [${meta.state}]`,
-      `in ${meta.spent}ms`
+    'step:run': ({ step }) => step.meta.is(['DONE', 'ERROR']) && this.logger.info(
+      `${step.trace().reverse().map((entity) => entity.title).join(' - ')}: [${step.meta.state}]`,
+      `in ${step.meta.spent}ms`
     ),
 
     'step:ai:tool': (action) => {
-      if (!checkIsCompleted(action.meta.state)) {
+      if (!action.meta.is(['DONE', 'ERROR'])) {
         return null;
       }
 
@@ -45,7 +49,7 @@ export class PipelineStdout {
     },
 
     'step:ai:reasoning': (action) => {
-      if (!checkIsCompleted(action.meta.state) || !action.output.length) {
+      if (!action.meta.is(['DONE', 'ERROR']) || !action.output.length) {
         return null;
       }
 
@@ -64,7 +68,7 @@ export class PipelineStdout {
     ),
   };
 
-  constructor(private logger: Pick<Console, 'info' | 'warn'>) {}
+  constructor(private logger: Pick<Console, 'info' | 'warn' | 'debug'>) {}
 
   /** Overrides default event hook */
   public override<K extends keyof TPipelineStdoutHooks>(name: K, handler: TPipelineStdoutHooks[K]): this {

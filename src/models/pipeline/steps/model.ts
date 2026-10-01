@@ -4,6 +4,7 @@ import type { TPipelineStepType } from './types';
 import type { Pipeline } from '../model';
 
 import { buildCounter, cast } from '../../../utils';
+import { Meta } from '../../meta';
 
 export interface IPipelineStepSource {
   pipeline: Pipeline;
@@ -31,6 +32,7 @@ export abstract class PipelineStep<
   public TSchema!: TSchema;
 
   public title: string = this.definition.title ?? `Step ${counter()}`;
+  public meta = Meta.build();
 
   public pipeline: TDefinition['pipeline'] = this.definition.pipeline;
   public parent: TDefinition['parent'] = this.definition.parent;

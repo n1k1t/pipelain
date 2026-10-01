@@ -114,3 +114,35 @@ it('static build should use env.url as the default url', () => {
   const router = LlmRouter.build();
   expect((router as any).configuration.url).toBe(env.url);
 });
+
+it('provide should use registered provider handler matched by minimatch pattern', () => {
+  const router = new LlmRouter({ key: 'test', provider: 'anthropic' });
+  const provider = providers.LlmOpenaiProvider.build('claude-sonet-5', { connection: { key: 'test' } });
+  const handler = jest.fn(() => provider);
+
+  expect(router.register('litellm/*', handler)).toBe(router);
+  expect(router.provide('litellm/claude-sonet-5')).toBe(provider);
+  expect(handler).toHaveBeenCalledWith('litellm/claude-sonet-5');
+});
+
+it('provide should use the first registered handler when several patterns match', () => {
+  const provider = providers.LlmOpenaiProvider.build('gpt-4', { connection: { key: 'test' } });
+  const first = jest.fn(() => provider);
+  const second = jest.fn(() => provider);
+
+  new LlmRouter({ key: 'test' }).register('litellm/**', first).register('litellm/claude-*', second).provide('litellm/claude-sonet-5');
+
+  expect(first).toHaveBeenCalled();
+  expect(second).not.toHaveBeenCalled();
+});
+
+it('provide should fall back to default routing when no registered pattern matches', () => {
+  const handler = jest.fn();
+  const spy = jest.spyOn(providers.LlmAnthropicProvider, 'build');
+
+  new LlmRouter({ key: 'test' }).register('litellm/*', handler).provide('claude-3-5-sonnet');
+
+  expect(handler).not.toHaveBeenCalled();
+  expect(spy).toHaveBeenCalled();
+  spy.mockRestore();
+});

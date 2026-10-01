@@ -46,7 +46,7 @@ export default LlmToolCompiler
     try {
       if (location) {
         if (!checkPatternIsRestricted(location)) {
-          throw LlmToolExecutionError.build('grep', 'Pattern or path is going to out of scope the project');
+          throw LlmToolExecutionError.build('Pattern or path is going to out of scope the project');
         }
       }
 
@@ -67,6 +67,6 @@ export default LlmToolCompiler
         .map((match) => `${match.path.text}:${match.line_number}: ${_.truncate(match.lines.text.trim(), { length: 100 })}`)
         .join('\n');
     } catch (error: unknown) {
-      throw LlmToolExecutionError.build('grep', error);
+      throw LlmToolExecutionError.build(error);
     }
   });

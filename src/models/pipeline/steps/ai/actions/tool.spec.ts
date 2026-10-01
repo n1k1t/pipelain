@@ -91,7 +91,6 @@ it('PipelineAiToolAction.complete should update trace.final with provider metada
     {} as any,
     { toolCallId: 'id', toolName: 'name', input: {} } as any,
   );
-  action.actualize = jest.fn().mockReturnValue(action);
   action.complete('DONE', {
     type: 'tool-result',
     toolCallId: 'id',
@@ -108,7 +107,6 @@ it('PipelineAiToolAction.complete should set output to json when state is DONE a
     {} as any,
     { toolCallId: 'id', toolName: 'name', input: {} } as any,
   );
-  action.actualize = jest.fn().mockReturnValue(action);
   action.complete('DONE', {
     type: 'tool-result',
     toolCallId: 'id',
@@ -125,7 +123,6 @@ it('PipelineAiToolAction.complete should set output to error when state is ERROR
     {} as any,
     { toolCallId: 'id', toolName: 'name', input: {} } as any,
   );
-  action.actualize = jest.fn().mockReturnValue(action);
   action.complete('ERROR', { type: 'tool-error', toolCallId: 'id', toolName: 'name', error: 'fail' } as any);
   expect(action.output?.type).toBe('error');
 });

@@ -1,7 +1,14 @@
+import duration from 'dayjs/plugin/duration';
+import dayjs from 'dayjs';
 import hbs from 'handlebars';
 import _ from 'lodash';
 
+import { LanguageModelUsage } from 'ai';
 import { converters } from 'json2md';
+
+import { extractLlmUsageTokens, preview } from './utils';
+
+dayjs.extend(duration);
 
 converters.plain = (input) => input;
 converters.file = (input) => {
@@ -32,14 +39,43 @@ hbs.registerHelper('formatOutput', (content) =>
     : String(content)
 );
 
+hbs.registerHelper('tokens', (usage: LanguageModelUsage, kind: keyof ReturnType<typeof extractLlmUsageTokens>) =>
+  usage ? extractLlmUsageTokens(usage)[kind] : 0
+);
+
+hbs.registerHelper('previewInput', (input?: { type: 'json'; value: object } | { type: 'text'; value: string }) => {
+  if (!input) {
+    return '';
+  }
+
+  return input.type === 'json'
+    ? preview(input.value, 300)
+    : _.truncate(input.value.replace(/\s+/g, ' ').trim(), { length: 300 });
+});
+
 hbs.registerHelper('formatTime', (timestamp: number) => new Date(timestamp).toLocaleTimeString());
 hbs.registerHelper('formatDate', (timestamp: number) => new Date(timestamp).toLocaleDateString());
 
-hbs.registerHelper('formatDuration', (ms: number) =>
-  typeof ms !== 'number'
-    ? ''
-    : ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(2)}s`
-);
+hbs.registerHelper('formatDuration', (ms: number) => {
+  if (typeof ms !== 'number') {
+    return '';
+  }
+  if (ms < 1000) {
+    return `${ms} ms`;
+  }
+
+  const spent = dayjs.duration(ms);
+
+  if (ms < 60_000) {
+    return spent.format('s [sec]');
+  }
+  if (ms < 3_600_000) {
+    return spent.format(spent.seconds() ? 'm [min] s [sec]' : 'm [min]');
+  }
+
+  const hours = `${Math.floor(spent.asHours())} h`;
+  return spent.minutes() ? `${hours} ${spent.format('m [min]')}` : hours;
+});
 
 /** MCP clients close unhandled rejection fix */
 process.on('unhandledRejection', (error: unknown) => {

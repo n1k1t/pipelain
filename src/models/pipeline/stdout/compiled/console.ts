@@ -36,31 +36,31 @@ const renderHeader = (icon: string, spent?: number) => [
 
 export default PipelineStdout
   .build()
-  .override('log',({ pipeline, message }) =>
+  .override('log',({ pipeline, message, level }) =>
     console.log(
-      renderHeader(colors.gray('‧')),
+      renderHeader(level === 'WARN' ? colors.yellow('‧') : colors.gray('‧')),
       ...renderTitle(pipeline),
 
       colors.gray(pipeline.title),
       colors.gray('⇢'),
 
-      ...message.map((segment) => typeof segment === 'string' ? colors.white(segment) : segment)
+      ...message.map(
+        (segment) => typeof segment === 'string'
+          ? level === 'DEBUG'
+            ? colors.gray(segment)
+            : colors.white(segment)
+          : segment
+      )
     )
   )
-  .override('warning',({ message }) =>
-    console.log(
-      renderHeader(colors.yellow('‧')),
-      ...message.map((segment) => typeof segment === 'string' ? colors.yellow(segment) : segment)
-    )
-  )
-  .override('run', ({ pipeline, meta }) => {
-    if (meta.state === 'INIT' && pipeline.context.input !== undefined) {
+  .override('run', ({ pipeline }) => {
+    if (pipeline.meta.is('INIT') && pipeline.context.input !== undefined) {
       const input = typeof pipeline.context.input === 'string'
         ? _.truncate(pipeline.context.input, { length: 100 })
         : preview(pipeline.context.input)
 
       return console.log(
-        renderHeader(colors.yellow.bold('⦿'), meta.spent),
+        renderHeader(colors.yellow.bold('⦿'), pipeline.meta.spent),
         ...renderTitle(pipeline),
 
         colors.yellow.bold(pipeline.title),
@@ -70,7 +70,7 @@ export default PipelineStdout
       );
     }
 
-    if (!pipeline.parent && meta.state === 'DONE') {
+    if (!pipeline.parent && pipeline.meta.is('DONE')) {
       const total = Object
         .values(pipeline.session.meta.usage.llm)
         .reduce((acc, usage) => acc + usage.prompt + usage.completion, 0);
@@ -80,7 +80,7 @@ export default PipelineStdout
         .map(([key, usage]) => colors.gray(`${key} ⭡ ${usage.prompt} ⭣ ${usage.completion}`));
 
       return console.log(
-        renderHeader(colors.yellow.bold('⚑'), meta.spent),
+        renderHeader(colors.yellow.bold('⚑'), pipeline.meta.spent),
 
         colors.yellow.bold(pipeline.title),
         colors.gray('⇢'),
@@ -96,8 +96,8 @@ export default PipelineStdout
       );
     }
   })
-  .override('step:run', ({ step, meta }) => {
-    if (meta.state === 'INIT') {
+  .override('step:run', ({ step }) => {
+    if (step.meta.is('INIT')) {
       return console.log(
         renderHeader(colors.green.bold(convertStepTypeIntoIcon(step))),
         ...renderTitle(step),
@@ -107,16 +107,16 @@ export default PipelineStdout
     }
 
     console.log(
-      renderHeader(colors.green.bold(convertStepTypeIntoIcon(step)), meta.spent),
+      renderHeader(colors.green.bold(convertStepTypeIntoIcon(step)), step.meta.spent),
       ...renderTitle(step),
 
-      meta.state === 'ERROR'
+      step.meta.is('ERROR')
         ? colors.red.bold(`✗ ${step.title}`)
         : colors.green.bold(`✓ ${step.title}`)
     );
   })
   .override('step:ai:reasoning', (action) => {
-    if (action.meta.state !== 'DONE' || !action.output.length) {
+    if (!action.meta.is('DONE') || !action.output.length) {
       return null;
     }
 
@@ -131,7 +131,7 @@ export default PipelineStdout
     );
   })
   .override('step:ai:tool', (action) => {
-    if (action.meta.state === 'INIT') {
+    if (action.meta.is('INIT')) {
       return null;
     }
 
@@ -142,7 +142,7 @@ export default PipelineStdout
       colors.gray(`⏱ ${action.step.title}`),
       colors.gray('⇢'),
 
-      action.meta.state === 'ERROR'
+      action.meta.is('ERROR')
         ? colors.red.bold(`${action.name}`)
         : colors.cyan.bold(`${action.name}`),
 
