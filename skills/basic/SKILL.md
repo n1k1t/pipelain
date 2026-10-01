@@ -356,7 +356,8 @@ pipeline.step('mcp_research', ({ factory }) => factory
           args: ['-y', '@modelcontextprotocol/server-gdrive'],
         },
         tools: {
-          enabled: ['list-files', 'read-file'], // Limit enabled tools
+          enabled: ['list-files', 'read-file'], // Limit enabled tools (patterns match names without prefix)
+          prefix: 'gdrive_', // Add prefix to tool names (e.g. "gdrive_read-file")
         },
       }),
     ],
@@ -416,6 +417,44 @@ pipeline.step('weather_report', ({ factory, context }) => factory
       .provide()
   }))
   .prompt([`Check weather in ${context.input}`])
+);
+```
+
+### LLM Tool Hooks
+
+Use `LlmHook` to intercept tool calls in an `ai` step and provide hooks with `.hooks([...])`. Match a tool by name (`LlmHook.build('write')`), by `LlmToolCompiler` instance or by `Tool` instance. Match built-in tools by name, because tools with options are clones of the compiler.
+
+- `before({ input, next })` runs instead of the original `execute`. Call `next(input)` to run the original `execute`. Return a value without `next` to skip execution. Throw `LlmToolExecutionError.build(reason)` to deny execution.
+- `after({ output, input })` receives `output` as `PromiseSettledResult`. The returned value is the final tool output and must match the tool output type. By default, it rethrows the error or returns the value. Throw `LlmToolExecutionError.build(output.reason)` to report a readable error to the AI.
+- Hooks that match the same tool run in the order of the array (first hook is outer).
+
+```ts
+import { LlmHook, LlmToolExecutionError } from '@n1k1t/pipelain';
+
+const guard = LlmHook
+  .build<{ input: { path: string; content: string } }>('write')
+  .before(({ input, next }) => {
+    if (input.path.startsWith('/etc')) {
+      throw LlmToolExecutionError.build('Writing to /etc is not allowed');
+    }
+
+    return next(input);
+  })
+  .after(({ output }) => {
+    if (output.status === 'rejected') {
+      throw LlmToolExecutionError.build(output.reason);
+    }
+
+    return output.value;
+  });
+
+pipeline.step('hooked', ({ factory, context }) => factory
+  .ai('Writing report')
+  .llm(({ context }) => context.llm.assign({
+    tools: factory.tools.files('read-write').provide(),
+  }))
+  .hooks([guard])
+  .prompt([`Write a report about ${context.input} into report.md`])
 );
 ```
 

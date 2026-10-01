@@ -43,6 +43,7 @@ Powerful utility to build and execute type-safe AI pipelines with structured out
   - [Using Skills](#using-skills)
 - [Extensions](#extensions)
   - [Custom LLM Tools](#custom-llm-tools)
+  - [LLM Tool Hooks](#llm-tool-hooks)
   - [Custom LLM Skills](#custom-llm-skills)
   - [Registering Skills from Markdown](#registering-skills-from-markdown)
 - [License](#license)
@@ -585,6 +586,9 @@ pipeline.step('mcp_research', ({ factory, context }) => factory
           enabled: ['list-files', 'read-file'],
           // Or disable specific tools
           // disabled: ['delete-file'],
+
+          // Add prefix to tool names (e.g. "gdrive_read-file")
+          prefix: 'gdrive_',
         },
       }),
     ],
@@ -592,6 +596,8 @@ pipeline.step('mcp_research', ({ factory, context }) => factory
   .prompt(['List my recent files in Google Drive and summarize them.'])
 );
 ```
+
+Use `tools.prefix` to avoid name conflicts between MCP servers or with built-in tools. The `enabled` and `disabled` patterns match tool names without the prefix. Hooks by name (`LlmHook.build('gdrive_read-file')`) match tool names with the prefix.
 
 ### Using Skills
 
@@ -655,6 +661,77 @@ pipeline.step('weather_report', ({ factory, context }) => factory
   .prompt([`Check weather in ${context.input}`])
 );
 ```
+
+### LLM Tool Hooks
+
+Use `LlmHook` to intercept tool calls inside an `ai` step. With a hook you can validate or modify the input, override the output, skip the original execution or handle errors. Provide hooks to the step with the `.hooks([...])` method.
+
+A hook matches a tool by one of these targets:
+
+- `LlmHook.build('name')` matches a tool by its name (built-in, custom or MCP tool).
+- `LlmHook.build(compiler)` matches a tool compiled from the same `LlmToolCompiler` instance.
+- `LlmHook.build(tool)` matches the same `Tool` instance.
+
+When a hook has a name (`LlmHook.build(compiler, { name: 'weather' })`), the name has priority over the compiler or tool.
+
+Each hook has two handlers:
+
+- `before({ input, next, session, context, step })` runs instead of the original `execute`. The original `execute` runs only when you call `next(input)`. If you do not call `next`, the returned value becomes the tool output.
+- `after({ output, input, session, context, step })` runs after `before` is settled. `output` is a `PromiseSettledResult`, so you can handle errors. The returned value becomes the final tool output and must match the tool output type. By default, `after` rethrows the error or returns the value.
+
+```ts
+import { LlmHook, LlmToolExecutionError } from '@n1k1t/pipelain';
+
+// Restrict paths of the built-in "write" tool
+const guard = LlmHook
+  .build<{ input: { path: string; content: string } }>('write')
+  .before(({ input, next }) => {
+    if (input.path.startsWith('/etc')) {
+      throw LlmToolExecutionError.build('Writing to /etc is not allowed');
+    }
+
+    return next(input);
+  });
+
+// Cache results of the custom tool and convert errors for the AI
+const cache = new Map<string, { temperature: number; condition: string }>();
+const weather = LlmHook
+  .build(weatherTool)
+  .before(async ({ input, next }) => {
+    const cached = cache.get(input.city);
+    if (cached) {
+      return cached;
+    }
+
+    const output = await next(input);
+
+    cache.set(input.city, output);
+    return output;
+  })
+  .after(({ output }) => {
+    if (output.status === 'rejected') {
+      throw LlmToolExecutionError.build(output.reason);
+    }
+
+    return output.value;
+  });
+
+pipeline.step('hooked', ({ factory, context }) => factory
+  .ai('Executing with hooks')
+  .llm(({ context }) => context.llm.assign({
+    tools: factory.tools
+      .files('read-write')
+      .custom({ weather: weatherTool })
+      .provide(),
+  }))
+  .hooks([guard, weather])
+  .prompt([`Check weather in ${context.input} and save it to weather.md`])
+);
+```
+
+When several hooks match the same tool, they run in the order of the array: the `before` handler of the first hook runs first, and its `after` handler runs last.
+
+> Built-in tools with options (for example, `write` in `files('read-write')`) are clones of the original compiler. Match built-in tools by name.
 
 ### Custom LLM Skills
 

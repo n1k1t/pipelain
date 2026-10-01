@@ -12,12 +12,12 @@ import {
 } from 'ai';
 
 import { PipelineAiFallbackAction, PipelineAiReasoningAction, PipelineAiToolAction } from './actions';
+import { skill, attachment, LlmHook, LlmToolCompiler, TLlmProviderReasoning } from '../../../llm';
 import { ArticleContent, ContentFactory, SourcesContent, TContentLocation } from '../../../content';
 import { IDefinition, TPipelineAiModelAction, TPipelineAiStepAction } from './types';
 import { IPipelineStepSource, PipelineStep, PipelineStepCompiler } from '../model';
 import { IPipelineConfiguration, TPipelineContentPredicate } from '../../types';
 import { TPipelineStepNestedHandler, TPipelineStepType } from '../types';
-import { skill, attachment, TLlmProviderReasoning } from '../../../llm';
 import { PipelineStepCompilationError } from '../../errors';
 import { PipelineParameters } from '../../parameters';
 import { VirtualFileSystem } from '../../../vfs';
@@ -60,6 +60,12 @@ export class PipelineAiStepCompiler<
     return this;
   }
 
+  /** Provides hooks for LLM tools (`before` handlers run in order of array) */
+  public hooks(hooks: LlmHook[]): this {
+    this.definition.hooks = hooks;
+    return this;
+  }
+
   /** Mocks AI output and saves prompt into `${project}/.pipelain/${time}-${session-id}/${title}.md` */
   public debug(): this {
     this.definition.debug = true;
@@ -77,6 +83,7 @@ export class PipelineAiStepCompiler<
 
       prompt: this.definition.prompt,
       schema: this.definition.schema,
+      hooks: this.definition.hooks,
       llm: this.definition.llm,
 
       pipeline: provided.pipeline,
@@ -254,8 +261,11 @@ export class PipelineAiStep<
             ...(vfs.size && { attachment }),
           })
         )
-        .reduce<Record<string, Tool<any, any>>>((acc, [name, compiler]) =>
-          _.set(acc, name, compiler.compile(parameters.extend({ vfs, step: this }))),
+        .reduce<Record<string, { tool: Tool<any, any>, compiler?: LlmToolCompiler }>>((acc, [name, compiler]) =>
+          _.set(acc, name, {
+            compiler,
+            tool: compiler.compile(parameters.extend({ vfs, step: this })),
+          }),
           {}
         );
 
@@ -263,15 +273,26 @@ export class PipelineAiStep<
         mcp.entity.map(async (client) =>
           Object
             .entries(await client.tools())
-            .forEach(([name, tool]) => _.set(tools, name, tools[name] ?? tool))
+            .forEach(([name, tool]) => _.set(tools, name, tools[name] ?? { tool }))
         )
+      );
+
+      Object.entries(tools).forEach(([name, source]) =>
+        [...(this.definition.hooks ?? [])]
+          .reverse()
+          .filter((hook) => hook.belongs({ name, ...source }))
+          .forEach((hook) => hook.wrap(source.tool, {
+            session: parameters.session,
+            context: parameters.context,
+            step: this,
+          }))
       );
 
       const result = await this.generate({
         parameters,
-        tools,
         llm,
 
+        tools: _.mapValues(tools, (source) => source.tool),
         schema: typeof this.definition.schema === 'function'
           ? await this.definition.schema(parameters)
           : this.definition.schema,

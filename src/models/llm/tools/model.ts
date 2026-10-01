@@ -24,6 +24,10 @@ export class LlmToolExecutionError extends Error {
   }
 
   static build(source: unknown): LlmToolExecutionError {
+    if (source instanceof LlmToolExecutionError) {
+      return source;
+    }
+
     const reason = source instanceof BashExecError
       ? source.stderr
       : source instanceof Error
@@ -72,16 +76,24 @@ export class LlmToolCompiler<TSchema extends {
     return <this & U>this;
   }
 
-  /** Provides options to tool (makes clone of this instance) */
-  public options(payload: TSchema['options']): this {
-    const clone = new LlmToolCompiler<TSchema>(this.description, {
+  public clone(): LlmToolCompiler<TSchema> {
+    return new LlmToolCompiler(this.description, {
       executor: this.provided.executor,
-      schema: this.provided.schema,
+      options: this.provided.options,
 
-      options: payload,
+      schema: {
+        output: this.provided.schema.output,
+        input: this.provided.schema.input,
+      },
     });
+  }
 
-    return <this>clone;
+  /** Provides options to tool (makes clone of this instance) */
+  public options(payload: TSchema['options']): LlmToolCompiler<TSchema> {
+    const clone = this.clone();
+
+    clone.provided.options = payload;
+    return clone;
   }
 
   public execute(executor: NonNullable<LlmToolCompiler<TSchema>['TExecutor']>): this {

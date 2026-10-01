@@ -106,5 +106,26 @@ it('should iterate over tools to apply filtering when disabled tools are configu
 
   const result = await client.tools();
 
-  expect(result).toEqual({});
+  expect(result).toEqual({ tool1: {} });
+});
+
+it('LlmMcpClient.tools should exclude tools by disabled patterns using minimatch', async () => {
+  const tools = { 'test:1': {}, 'other:2': {} };
+  const source = { tools: jest.fn().mockResolvedValue(tools) } as any;
+  const client = LlmMcpClient.build(source, { transport: {} as any, tools: { disabled: ['test:*'] } });
+  const result = await client.tools();
+  expect(result).toEqual({ 'other:2': {} });
+});
+
+it('LlmMcpClient.tools should add prefix to tool names after filtering', async () => {
+  const tools = { 'test:1': {}, 'other:2': {} };
+  const source = { tools: jest.fn().mockResolvedValue(tools) } as any;
+  const client = LlmMcpClient.build(source, { transport: {} as any, tools: { enabled: ['test:*'], prefix: 'mcp_' } });
+  const result = await client.tools();
+  expect(result).toEqual({ 'mcp_test:1': {} });
+});
+
+it('LlmMcp.clone should copy the tools prefix', () => {
+  const mcp = LlmMcp.build({ transport: {} as any, tools: { prefix: 'mcp_' } });
+  expect(mcp.clone().configuration.tools?.prefix).toBe('mcp_');
 });

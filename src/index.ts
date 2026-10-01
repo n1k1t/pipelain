@@ -25,6 +25,7 @@ export * from './models/llm/providers/model';
 export * from './models/llm/tools/model';
 export * from './models/llm/factory';
 export * from './models/llm/router';
+export * from './models/llm/hook';
 export * from './models/llm/mcp';
 
 export * as content from './models/content/kinds';

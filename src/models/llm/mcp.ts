@@ -11,6 +11,9 @@ export class LlmMcp {
 
       /** Disable tools by name/minimatch pattern */
       disabled?: string[];
+
+      /** Prefix for tool names (e.g. `github_`). Patterns of `enabled` and `disabled` match names without prefix */
+      prefix?: string;
     };
   }) {}
 
@@ -25,6 +28,10 @@ export class LlmMcp {
 
         ...(this.configuration.tools?.disabled && {
           disabled: [...this.configuration.tools.disabled],
+        }),
+
+        ...(this.configuration.tools?.prefix && {
+          prefix: this.configuration.tools.prefix,
         }),
       }
     })
@@ -73,13 +80,16 @@ export class LlmMcpClient {
     if (this.configuration.tools?.disabled?.length) {
       all.forEach(
         (key) =>
-          this.configuration.tools!.enabled!.some((pattern) => minimatch(key, pattern))
+          this.configuration.tools!.disabled!.some((pattern) => minimatch(key, pattern))
             ? filtered.delete(key)
             : null
       );
     }
 
-    return _.pick(tools, Array.from(filtered));
+    return _.mapKeys(
+      _.pick(tools, Array.from(filtered)),
+      (tool, key) => `${this.configuration.tools?.prefix ?? ''}${key}`
+    );
   }
 
   public close(): Promise<void> {
