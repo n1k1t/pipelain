@@ -52,6 +52,9 @@ export class LlmToolCompiler<TSchema extends {
     object
   >;
 
+  /** Original compiler instance (keeps reference across clones) */
+  public origin: LlmToolCompiler = this;
+
   constructor(public description: string, protected provided: {
     executor?: LlmToolCompiler<TSchema>['TExecutor'];
     options?: TSchema['options'];
@@ -77,7 +80,7 @@ export class LlmToolCompiler<TSchema extends {
   }
 
   public clone(): LlmToolCompiler<TSchema> {
-    return new LlmToolCompiler(this.description, {
+    const clone = new LlmToolCompiler<TSchema>(this.description, {
       executor: this.provided.executor,
       options: this.provided.options,
 
@@ -86,6 +89,9 @@ export class LlmToolCompiler<TSchema extends {
         input: this.provided.schema.input,
       },
     });
+
+    clone.origin = this.origin;
+    return clone;
   }
 
   /** Provides options to tool (makes clone of this instance) */

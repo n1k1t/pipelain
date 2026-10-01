@@ -669,7 +669,7 @@ Use `LlmHook` to intercept tool calls inside an `ai` step. With a hook you can v
 A hook matches a tool by one of these targets:
 
 - `LlmHook.build('name')` matches a tool by its name (built-in, custom or MCP tool).
-- `LlmHook.build(compiler)` matches a tool compiled from the same `LlmToolCompiler` instance.
+- `LlmHook.build(compiler)` matches a tool compiled from the same `LlmToolCompiler` instance or its clones (for example, built-in tools with options).
 - `LlmHook.build(tool)` matches the same `Tool` instance.
 
 When a hook has a name (`LlmHook.build(compiler, { name: 'weather' })`), the name has priority over the compiler or tool.
@@ -731,7 +731,7 @@ pipeline.step('hooked', ({ factory, context }) => factory
 
 When several hooks match the same tool, they run in the order of the array: the `before` handler of the first hook runs first, and its `after` handler runs last.
 
-> Built-in tools with options (for example, `write` in `files('read-write')`) are clones of the original compiler. Match built-in tools by name.
+> Built-in tools with options (for example, `write` in `files('read-write')`) are clones of the original compiler. A hook built from `llm.tools.write` matches them too.
 
 ### Custom LLM Skills
 

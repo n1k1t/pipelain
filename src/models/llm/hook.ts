@@ -132,7 +132,7 @@ export class LlmHook<TSchema extends ILlmHookSchema = any> {
       return this.provided.name === target.name;
     }
     if (this.provided.compiler && target.compiler) {
-      return this.provided.compiler === target.compiler;
+      return this.provided.compiler.origin === target.compiler.origin;
     }
     if (this.provided.tool && target.tool) {
       return this.provided.tool === target.tool;
@@ -195,22 +195,22 @@ export class LlmHook<TSchema extends ILlmHookSchema = any> {
   }>;
 
   static build(
-    nameOrtToolOrCompiler: string | LlmToolCompiler | Tool,
+    nameOrToolOrCompiler: string | Tool | LlmToolCompiler,
     options?: ILlmHookBuildOptions
   ): LlmHook {
-    if (nameOrtToolOrCompiler instanceof LlmToolCompiler) {
+    if (nameOrToolOrCompiler instanceof LlmToolCompiler) {
       return new LlmHook({
-        compiler: nameOrtToolOrCompiler,
+        compiler: nameOrToolOrCompiler,
         name: options?.name,
       });
     }
 
-    if (typeof nameOrtToolOrCompiler === 'string') {
-      return new LlmHook({ name: nameOrtToolOrCompiler });
+    if (typeof nameOrToolOrCompiler === 'string') {
+      return new LlmHook({ name: nameOrToolOrCompiler });
     }
 
     return new LlmHook({
-      tool: nameOrtToolOrCompiler,
+      tool: nameOrToolOrCompiler,
       name: options?.name,
     });
   }

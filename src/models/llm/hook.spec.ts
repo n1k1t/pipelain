@@ -44,6 +44,21 @@ it('LlmHook.belongs should not match by different tool', () => {
   expect(hook.belongs({ tool: { execute: jest.fn() } as any })).toBe(false);
 });
 
+it('LlmHook.belongs should match by cloned compiler', () => {
+  const compiler = LlmToolCompiler.build<{ allowed?: string[] }>('description');
+  const hook = LlmHook.build(compiler);
+
+  expect(hook.belongs({ compiler: compiler.options({ allowed: ['src'] }) })).toBe(true);
+  expect(hook.belongs({ compiler: compiler.clone().clone() })).toBe(true);
+});
+
+it('LlmHook.belongs should match by original compiler when hook uses clone', () => {
+  const compiler = LlmToolCompiler.build<{ allowed?: string[] }>('description');
+  const hook = LlmHook.build(compiler.options({ allowed: ['src'] }));
+
+  expect(hook.belongs({ compiler })).toBe(true);
+});
+
 it('LlmHook.belongs should prefer name over compiler when both are provided', () => {
   const compiler = LlmToolCompiler.build('description');
   const hook = LlmHook.build(compiler, { name: 'read' });
