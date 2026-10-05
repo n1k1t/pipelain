@@ -146,3 +146,32 @@ it('provide should fall back to default routing when no registered pattern match
   expect(spy).toHaveBeenCalled();
   spy.mockRestore();
 });
+
+it('setup should return router instance', () => {
+  const router = new LlmRouter({ key: 'test' });
+  expect(router.setup('openai', { options: {} })).toBe(router);
+});
+
+it('provide should pass setup options and merged connection into provider model', () => {
+  const spy = jest.spyOn(providers.LlmAnthropicProvider, 'build');
+
+  new LlmRouter({ key: 'test', url: 'http://router' })
+    .setup('anthropic', { connection: { key: 'anthropic-key' }, options: { sendReasoning: true } })
+    .provide('claude-3-5-sonnet');
+
+  expect(spy).toHaveBeenCalledWith('claude-3-5-sonnet', {
+    connection: { key: 'anthropic-key', url: 'http://router' },
+    options: { sendReasoning: true },
+  });
+  spy.mockRestore();
+});
+
+it('provide should not pass setup of another provider', () => {
+  const config = { key: 'test' };
+  const spy = jest.spyOn(providers.LlmOpenaiProvider, 'build');
+
+  new LlmRouter(config).setup('anthropic', { connection: { key: 'anthropic-key' } }).provide('gpt-4');
+
+  expect(spy).toHaveBeenCalledWith('gpt-4', { connection: config });
+  spy.mockRestore();
+});

@@ -564,6 +564,22 @@ pipeline.step('analysis', ({ factory }) => factory
 
 Registrations are checked in order and the first match wins. Unmatched models fall back to the default routing.
 
+Use `setup` to save a connection and options for a provider. The router passes them into every model of this provider built by the default routing:
+
+```ts
+const router = LlmRouter
+  .build()
+  .setup('anthropic', {
+    connection: { key: process.env.ANTHROPIC_API_KEY! }, // Merged over the router connection
+    options: { sendReasoning: true }, // Typed by the provider
+  })
+  .setup('google', { options: { thinkingConfig: { includeThoughts: false } } });
+
+router.provide('claude-sonnet-4-5'); // Anthropic model with the setup above
+```
+
+Supported providers are `openai`, `anthropic`, `google`, `mistral` and `proxy`. The setup connection can override only some fields (e.g. `key`); the other fields come from the router configuration. Handlers from `register` ignore setups.
+
 ### MCP (Model Context Protocol) Integration
 
 You can integrate MCP servers into your pipeline steps. This allows the AI to use tools provided by external MCP servers. You can also filter which tools are enabled:

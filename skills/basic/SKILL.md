@@ -387,6 +387,20 @@ pipeline.step('analysis', ({ factory }) => factory
 );
 ```
 
+Save a connection and options per provider with `LlmRouter.setup`. The default routing passes them into every model of this provider. The setup connection is merged over the router connection. Options are typed by the provider. Handlers from `register` ignore setups.
+
+```ts
+const router = LlmRouter
+  .build()
+  .setup('anthropic', {
+    connection: { key: process.env.ANTHROPIC_API_KEY! },
+    options: { sendReasoning: true },
+  })
+  .setup('google', { options: { thinkingConfig: { includeThoughts: false } } });
+
+router.provide('claude-sonnet-4-5');
+```
+
 ### Custom LLM Tools
 
 Create and integrate your own custom tools using `LlmToolCompiler`. Throw `LlmToolExecutionError.build(reasonOrError)` inside `execute` to report a failure back to the AI.

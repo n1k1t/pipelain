@@ -68,7 +68,7 @@ export class PipelineStdout {
     ),
   };
 
-  constructor(private logger: Pick<Console, 'info' | 'warn' | 'debug'>) {}
+  constructor(protected logger: Pick<Console, 'info' | 'warn' | 'debug'>) {}
 
   /** Overrides default event hook */
   public override<K extends keyof TPipelineStdoutHooks>(name: K, handler: TPipelineStdoutHooks[K]): this {
