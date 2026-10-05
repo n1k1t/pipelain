@@ -39,5 +39,10 @@ export default LlmToolCompiler
     z.string().describe('The paths to the matching files separated by newline')
   )
   .execute(({ context }) => async ({ pattern }) => {
-    return context.project.files.glob([pattern]).join('\n');
+    const files = context.project.files.glob([pattern]);
+    if (files.length === 0) {
+      return 'No files found.';
+    }
+
+    return files.join('\n');
   });

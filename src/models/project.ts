@@ -118,8 +118,9 @@ export class Project {
 
     const ignore = gitignore
       .split('\n')
-      .map((segment) => segment.trim().replace(/^\//, '').replace(/\/$/, '/**'))
-      .filter((segment) => segment.length && !segment.startsWith('!'));
+      .map((segment) => segment.trim())
+      .filter((segment) => segment.length && !['!', '#', '\\'].some((prefix) => segment.startsWith(prefix)))
+      .map((segment) => segment.replace(/^\//, '').replace(/\/$/, '/**'));
 
     const files = await fg(['**/*.{ts,js,json,md}'], { cwd, ignore });
     const skills = (await Promise.all(

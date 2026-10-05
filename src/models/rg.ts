@@ -88,9 +88,14 @@ export class Rg {
       args.push(`--max-count=${options.limit}`);
     }
 
-    const result = await bash.exec(args.concat(`'${pattern}'`, options?.path ? [options.path] : []).join(' '));
+    const result = await bash.exec(args.concat('--regexp', pattern, options?.path ? [options.path] : []));
     if (result.status === 'ERROR') {
-      return [];
+      // Code 1 means no matches, any other code is a real error (eg. invalid regex)
+      if (result.error.code === 1) {
+        return [];
+      }
+
+      throw result.error;
     }
 
     return result.stdout

@@ -31,8 +31,11 @@ export class Bash {
     cwd?: string;
   }) {}
 
-  /** Executes bash commands (resolves `stderr` into `{ status: 'ERROR', error: BashExecError(...) }`) */
-  public async exec(cmd: string): Promise<TBashExecuted> {
+  /**
+   * Executes bash commands (resolves `stderr` into `{ status: 'ERROR', error: BashExecError(...) }`)
+   * Pass `cmd` as array to spawn arguments as is (without string parsing)
+   */
+  public async exec(cmd: string | string[]): Promise<TBashExecuted> {
     const options: SpawnOptions = {
       cwd: this.provided?.cwd ?? process.cwd(),
       env: this.provided?.env ?? process.env,
@@ -40,9 +43,11 @@ export class Bash {
       stdio: ['ignore', 'pipe', 'pipe'],
     };
 
-    const args = parseArgsStringToArgv(this.provided?.argv0 ? `${this.provided.argv0} ${cmd}` : cmd);
-    const spawned = spawn(args[0], args.slice(1), options);
+    const args = Array.isArray(cmd)
+      ? (this.provided?.argv0 ? [this.provided.argv0, ...cmd] : cmd)
+      : parseArgsStringToArgv(this.provided?.argv0 ? `${this.provided.argv0} ${cmd}` : cmd);
 
+    const spawned = spawn(args[0], args.slice(1), options);
     const stdout: string[] = [];
     const stderr: string[] = [];
 
