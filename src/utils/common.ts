@@ -95,29 +95,52 @@ export const chunkify = async <TResult, TPayload, T extends {
  *
  * // Wait for 1500ms
  * marker(Date.now()) // 1500
+ *
+ * const total = buildTimeSpendMarker({ shift: false });
+ *
+ * // Wait for 500ms
+ * total() // 500
+ *
+ * // Wait for 1500ms
+ * total() // 2000
  * ```
  */
-export const buildTimeSpendMarker = (initial: number = Date.now()) => {
-  let last = initial;
+export const buildTimeSpendMarker = (options?: {
+  /** Initial timestamp to count from */
+  initial?: number;
+
+  /** Moves the counting point to the last call timestamp (`true` by default) */
+  shift?: boolean;
+}) => {
+  let last = options?.initial ?? Date.now();
 
   return (timestamp: number = Date.now()): number => {
     const diff = timestamp - last;
 
-    last = timestamp;
+    if (options?.shift ?? true) {
+      last = timestamp;
+    }
+
     return diff;
   };
 };
 
 /**
- * Returns preview string of provided object
+ * Returns single line preview string of provided string or object
  *
  * @example
  * ```ts
  * const payload = { foo: 123, bar: '456' };
  * preview(payload) // 'foo=123 bar="456"'
+ *
+ * preview('foo\nbar') // 'foo↩ bar'
  * ```
 */
-export const preview = (payload: object, limit: number = 100): string => {
+export const preview = (payload: string | object, limit: number = 100): string => {
+  if (typeof payload === 'string') {
+    return _.truncate(payload, { length: limit }).replace(/\r?\n/g, '↩ ');
+  }
+
   const result = Object.entries(payload)
     .map(([key, value]) => {
       if (Array.isArray(value)) {
@@ -128,7 +151,7 @@ export const preview = (payload: object, limit: number = 100): string => {
         return `${key}={...}`;
       }
 
-      return `${key}=${typeof value === 'string' ? `"${value}"` : value}`;
+      return `${key}=${typeof value === 'string' ? `"${value.replace(/\r?\n/g, '↩ ')}"` : value}`;
     })
     .join(' ');
 

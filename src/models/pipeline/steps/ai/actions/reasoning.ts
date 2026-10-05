@@ -1,11 +1,10 @@
 import { AssistantContent, ProviderMetadata, TextStreamPart } from 'ai';
-import _ from 'lodash';
 
 import type { PipelineAiStep } from '../index';
 import type { LlmProvider } from '../../../../llm';
 
 import { PipelineAiAction } from './model';
-import { cast } from '../../../../../utils';
+import { cast, preview } from '../../../../../utils';
 
 type TStartFragment = Extract<TextStreamPart<any>, { type: 'reasoning-start' }>;
 type TDeltaFragment = Extract<TextStreamPart<any>, { type: 'reasoning-delta' }>;
@@ -47,7 +46,7 @@ export class PipelineAiReasoningAction extends PipelineAiAction {
 
   /** Renders output preview */
   public preview(limit: number = 100): string {
-    return _.truncate(this.output, { length: limit }).replace(/\n/g, '↩ ');
+    return preview(this.output, limit);
   }
 
   public provide(kind: 'initial' | 'final'): object | null {

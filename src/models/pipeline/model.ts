@@ -203,57 +203,64 @@ export class Pipeline<TConfiguration extends IPipelineConfiguration = any> {
 
     await this.schema.parseAsync(this.context.input);
 
-    this.meta.actualize('INIT');
+    this.meta = Meta.build().actualize('INIT');
     this.session.emit('run', { pipeline: this });
 
-    for (const step of this.provided.steps) {
-      if (step.type === 'named' && step.name in this.context.state) {
-        continue;
-      }
-
-      const handled = await step.handler(parameters);
-      const compiled = handled instanceof PipelineStepCompiler || handled instanceof PipelineCompiler
-        ? (
-          await handled.compile({
-            project: this.context.project,
-            session: parameters.session,
-
-            pipeline: this,
-            parent: this,
-          })
-        )
-        : null;
-
-      if (!compiled) {
-        if (step.type === 'named') {
-          Object.assign(this.context.state, { [step.name]: handled });
+    try {
+      for (const step of this.provided.steps) {
+        if (step.type === 'named' && step.name in this.context.state) {
+          continue;
         }
 
-        continue;
+        const handled = await step.handler(parameters);
+        const compiled = handled instanceof PipelineStepCompiler || handled instanceof PipelineCompiler
+          ? (
+            await handled.compile({
+              project: this.context.project,
+              session: parameters.session,
+
+              pipeline: this,
+              parent: this,
+            })
+          )
+          : null;
+
+        if (!compiled) {
+          if (step.type === 'named') {
+            Object.assign(this.context.state, { [step.name]: handled });
+          }
+
+          continue;
+        }
+
+        const result = compiled instanceof PipelineStep
+          ? await compiled.run(parameters)
+          : await compiled.run(undefined);
+
+        if (step.type === 'named') {
+          Object.assign(this.context.state, { [step.name]: result });
+        }
       }
 
-      const result = compiled instanceof PipelineStep
-        ? await compiled.run(parameters)
-        : await compiled.run(undefined);
+      if (report.entity?.snapshots.length) {
+        this.session.emit('log', {
+          level: 'DEBUG',
 
-      if (step.type === 'named') {
-        Object.assign(this.context.state, { [step.name]: result });
+          pipeline: this,
+          message: [`Report will be saved into [${report.entity.location}]`],
+        });
       }
+
+      this.meta.actualize('DONE');
+      this.session.emit('run', { pipeline: this });
+
+      return this.context.state;
+    } catch (error: unknown) {
+      this.meta.actualize('ERROR');
+      this.session.emit('run', { pipeline: this });
+
+      throw error;
     }
-
-    if (report.entity?.snapshots.length) {
-      this.session.emit('log', {
-        level: 'DEBUG',
-
-        pipeline: this,
-        message: [`Report will be saved into [${report.entity.location}]`],
-      });
-    }
-
-    this.meta.actualize('DONE');
-    this.session.emit('run', { pipeline: this });
-
-    return this.context.state;
   }
 
   /** Traces instances from this to origin */

@@ -24,6 +24,27 @@ it('should update state and spent via actualize and return the instance', () => 
   expect(meta.spent).toBeGreaterThanOrEqual(0);
 });
 
+it('should count spent from the start on repeated actualize', () => {
+  jest.useFakeTimers({ now: 0 });
+
+  try {
+    const meta = Meta.build().actualize('INIT');
+
+    jest.setSystemTime(500);
+    meta.actualize('PENDING');
+
+    jest.setSystemTime(2000);
+    meta.actualize('DONE');
+
+    jest.setSystemTime(2003);
+    meta.actualize('DONE');
+
+    expect(meta.spent).toBe(2003);
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
 it('should serialize to plain object via toPlain', () => {
   const meta = Meta.build().actualize('ERROR');
 

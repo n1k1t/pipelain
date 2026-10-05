@@ -112,9 +112,7 @@ export class PipelineAiToolAction extends PipelineAiAction {
 
   /** Renders input parameters preview */
   public preview(limit: number = 100): string {
-    return this.input.type === 'text'
-      ? _.truncate(this.input.value, { length: limit }).replace(/\n/g, '↩ ')
-      : preview(this.input.value, limit);
+    return preview(this.input.value, limit);
   }
 
   public provide(kind: 'initial' | 'final'): object | null {

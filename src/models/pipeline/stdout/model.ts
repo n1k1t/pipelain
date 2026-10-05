@@ -43,7 +43,7 @@ export class PipelineStdout {
 
       this.logger.info(
         `${action.step.trace().reverse().map((entity) => entity.title).join(' - ')}:`,
-        `Tool [${action.name}] [${action.meta.state}] in ${action.meta.spent}ms`,
+        `Tool [${action.name}] [${action.meta.state}] [${action.llm.name}/${action.llm.model}] in ${action.meta.spent}ms`,
         message.length ? `\n${message}` : '',
       );
     },
@@ -57,7 +57,7 @@ export class PipelineStdout {
 
       this.logger.info(
         `${action.step.trace().reverse().map((entity) => entity.title).join(' - ')}:`,
-        `Reasoning [${action.meta.state}] in ${action.meta.spent}ms`,
+        `Reasoning [${action.meta.state}] [${action.llm.name}/${action.llm.model}] in ${action.meta.spent}ms`,
         message.length ? `\n${message}` : '',
       )
     },

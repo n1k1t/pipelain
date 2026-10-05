@@ -8,7 +8,7 @@ export class Meta {
 
   public state: 'INIT' | 'PENDING' | 'DONE' | 'ERROR' = 'INIT';
 
-  private marker = buildTimeSpendMarker(this.timestamp);
+  private marker = buildTimeSpendMarker({ initial: this.timestamp, shift: false });
 
   public is(predicate: Meta['state'] | Meta['state'][]): boolean {
     return [predicate].flat().includes(this.state);

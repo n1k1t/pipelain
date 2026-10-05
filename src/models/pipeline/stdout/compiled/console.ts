@@ -1,5 +1,4 @@
 import colors from 'colors';
-import _ from 'lodash';
 
 import type { PipelineStep } from '../../steps';
 import type { Pipeline } from '../../model';
@@ -55,10 +54,6 @@ export default PipelineStdout
   )
   .override('run', ({ pipeline }) => {
     if (pipeline.meta.is('INIT') && pipeline.context.input !== undefined) {
-      const input = typeof pipeline.context.input === 'string'
-        ? _.truncate(pipeline.context.input, { length: 100 })
-        : preview(pipeline.context.input)
-
       return console.log(
         renderHeader(colors.yellow.bold('⦿'), pipeline.meta.spent),
         ...renderTitle(pipeline),
@@ -66,7 +61,7 @@ export default PipelineStdout
         colors.yellow.bold(pipeline.title),
         colors.gray('⇢'),
 
-        colors.white(input.replace(/\n/g, '↩ '))
+        colors.white(preview(pipeline.context.input))
       );
     }
 
@@ -125,6 +120,7 @@ export default PipelineStdout
       ...renderTitle(action.step),
 
       colors.gray(`⏱ ${action.step.title}`),
+      colors.gray(`[${action.llm.name}/${action.llm.model}]`),
       colors.gray('⇢'),
 
       colors.gray(action.preview())
@@ -140,6 +136,7 @@ export default PipelineStdout
       ...renderTitle(action.step),
 
       colors.gray(`⏱ ${action.step.title}`),
+      colors.gray(`[${action.llm.name}/${action.llm.model}]`),
       colors.gray('⇢'),
 
       action.meta.is('ERROR')
