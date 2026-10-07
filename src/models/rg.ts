@@ -14,6 +14,16 @@ const platforms = <const>{
 };
 
 const schemas = (() => {
+  /** Arbitrary data from `rg --json` (`bytes` is base64 and used when data is not valid UTF-8) */
+  const data = z
+    .object({
+      text: z.string().optional(),
+      bytes: z.string().optional(),
+    })
+    .transform((value) => ({
+      text: value.text ?? Buffer.from(value.bytes ?? '', 'base64').toString('utf8'),
+    }));
+
   const match = z.object({
     type: z.literal('match'),
 
@@ -21,19 +31,12 @@ const schemas = (() => {
       line_number: z.number(),
       absolute_offset: z.number(),
 
-      path: z.object({
-        text: z.string(),
-      }),
-
-      lines: z.object({
-        text: z.string(),
-      }),
+      path: data,
+      lines: data,
 
       submatches: z.array(
         z.object({
-          match: z.object({
-            text: z.string(),
-          }),
+          match: data,
 
           start: z.number(),
           end: z.number(),
@@ -60,13 +63,17 @@ export class Rg {
 
   constructor(protected provided?: { cwd?: string }) {}
 
+  /** Searches pattern (`errors` contains non-fatal errors like missing paths when some matches were found) */
   public async exec(pattern: string, options?: {
     include?: string[];
     exclude?: string[];
 
     limit?: number;
-    path?: string;
-  }): Promise<z.infer<typeof schemas.match>['data'][]> {
+    paths?: string[];
+  }): Promise<{
+    matches: z.infer<typeof schemas.match>['data'][];
+    errors: string[];
+  }> {
     const argv0 = await this.provide();
 
     const bash = Bash.build({ argv0, cwd: this.provided?.cwd });
@@ -88,24 +95,40 @@ export class Rg {
       args.push(`--max-count=${options.limit}`);
     }
 
-    const result = await bash.exec(args.concat('--regexp', pattern, options?.path ? [options.path] : []));
+    const result = await bash.exec(args.concat('--regexp', pattern, '--', options?.paths ?? []));
     if (result.status === 'ERROR') {
-      // Code 1 means no matches, any other code is a real error (eg. invalid regex)
+      // Code 1 means no matches
       if (result.error.code === 1) {
-        return [];
+        return { matches: [], errors: [] };
       }
 
-      throw result.error;
+      // Code 2 with matches means partial errors (eg. one of paths is missing), otherwise it's a real error
+      const matches = result.error.code === 2 ? this.parse(result.error.stdout, options?.limit) : [];
+      if (!matches.length) {
+        throw result.error;
+      }
+
+      return {
+        matches,
+        errors: result.error.stderr.split(/\r?\n/).filter(Boolean),
+      };
     }
 
-    return result.stdout
+    return {
+      matches: this.parse(result.stdout, options?.limit),
+      errors: [],
+    };
+  }
+
+  private parse(stdout: string, limit?: number): z.infer<typeof schemas.match>['data'][] {
+    return stdout
       .trim()
       .split(/\r?\n/)
       .filter(Boolean)
       .map((line) => JSON.parse(line))
       .map((parsed) => schemas.result.parse(parsed))
       .filter((record): record is z.infer<typeof schemas.match> => record.type === 'match')
-      .slice(0, options?.limit)
+      .slice(0, limit)
       .map((record) => record.data);
   }
 

@@ -1,5 +1,7 @@
-import { z } from 'zod/v3';
+import parseArgsStringToArgv from 'string-argv';
 import _ from 'lodash';
+
+import { z } from 'zod/v3';
 
 import { LlmToolCompiler, LlmToolExecutionError } from './model';
 import { checkPatternIsRestricted } from './utils';
@@ -37,34 +39,41 @@ export default LlmToolCompiler
     z.object({
       pattern: z.string().describe('The regex pattern to search for in file contents'),
 
-      path: z.string().optional().describe('The directory to search in. Defaults to the current working directory.'),
+      path: z
+        .string()
+        .optional()
+        .describe(
+          'The directory or file to search in. Multiple paths are separated by space (quote paths with spaces). ' +
+          'Defaults to the current working directory.'
+        ),
       include: z.string().optional().describe('File pattern to include in the search (e.g. "*.js", "*.{ts,tsx}")'),
     })
   )
   .output(z.string().describe('Search results'))
   .execute(({ context }) => async ({ pattern, path: location, include }) => {
     try {
-      if (location) {
-        if (!checkPatternIsRestricted(location)) {
-          throw LlmToolExecutionError.build('Pattern or path is going to out of scope the project');
-        }
+      const paths = location ? parseArgsStringToArgv(location) : [];
+
+      if (paths.some((nested) => !checkPatternIsRestricted(nested))) {
+        throw LlmToolExecutionError.build('Pattern or path is going to out of scope the project');
       }
 
       const rg = Rg.build({ cwd: context.project.cwd });
       const results = await rg.exec(pattern, {
-        path: location,
+        paths,
         limit: 50,
 
         include: include ? [include] : undefined,
         exclude: context.project.sources.ignore,
       });
 
-      if (results.length === 0) {
+      if (results.matches.length === 0) {
         return 'No matches found.';
       }
 
-      return results
+      return results.matches
         .map((match) => `${match.path.text}:${match.line_number}: ${_.truncate(match.lines.text.trim(), { length: 100 })}`)
+        .concat(results.errors.length ? ['', 'Errors:', ...results.errors] : [])
         .join('\n');
     } catch (error: unknown) {
       throw LlmToolExecutionError.build(error);

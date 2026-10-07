@@ -12,6 +12,7 @@ export class BashExecError extends Error {
     public cmd: string,
     public code: number,
     public stderr: string,
+    public stdout: string = '',
     public source?: Error
   ) {
     super(
@@ -55,7 +56,13 @@ export class Bash {
       spawned.once('error', (error) =>
         resolve({
           status: 'ERROR',
-          error: new BashExecError(args.join(' '), -1, (stderr.length ? stderr : stdout).join('').trim(), error),
+          error: new BashExecError(
+            args.join(' '),
+            -1,
+            (stderr.length ? stderr : stdout).join('').trim(),
+            stdout.join(''),
+            error
+          ),
         })
       );
 
@@ -67,7 +74,12 @@ export class Bash {
           })
           : resolve({
             status: 'ERROR',
-            error: new BashExecError(args.join(' '), code, (stderr.length ? stderr : stdout).join('').trim()),
+            error: new BashExecError(
+              args.join(' '),
+              code,
+              (stderr.length ? stderr : stdout).join('').trim(),
+              stdout.join('')
+            ),
           })
       );
 
