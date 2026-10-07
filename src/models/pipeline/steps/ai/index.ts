@@ -4,7 +4,6 @@ import { ZodType } from 'zod/v3';
 import {
   APICallError,
   InvalidPromptError,
-  ModelMessage,
   Output,
   ProviderMetadata,
   streamText,
@@ -18,12 +17,12 @@ import { IDefinition, TPipelineAiModelAction, TPipelineAiStepAction } from './ty
 import { IPipelineStepSource, PipelineStep, PipelineStepCompiler } from '../model';
 import { IPipelineConfiguration, TPipelineContentPredicate } from '../../types';
 import { TPipelineStepNestedHandler, TPipelineStepType } from '../types';
+import { compileDebug, compileMessages } from './utils';
 import { PipelineStepCompilationError } from '../../errors';
 import { PipelineParameters } from '../../parameters';
 import { VirtualFileSystem } from '../../../vfs';
 import { cast, disposify } from '../../../../utils';
 import { PipelineAiError } from './errors';
-import { compileDebug } from './utils';
 import { LlmProvider } from '../../../llm/providers/model';
 
 export * from './actions';
@@ -365,41 +364,9 @@ export class PipelineAiStep<
       .render();
 
     const instructions = [info, provided.messages.system].join('\n\n');
-    const messages: ModelMessage[] = [{
-      role: 'user',
-      content: provided.messages.user,
-    }];
-
-    provided.messages.history?.forEach((record) => {
-      if (record.actions.every((action) => action instanceof PipelineAiReasoningAction)) {
-        return messages.push({
-          role: 'assistant',
-          providerOptions: record.trace,
-
-          content: record.actions.map((action: PipelineAiReasoningAction) => action.format()),
-        });
-      }
-
-      messages.push(
-        {
-          role: 'assistant',
-          providerOptions: record.trace,
-
-          content: record.actions.map((action) =>
-            action instanceof PipelineAiReasoningAction
-              ? action.format()
-              : action.format('call-part')
-          ),
-        },
-        {
-          role: 'tool',
-          providerOptions: record.trace,
-
-          content: record.actions
-            .filter((action) => action instanceof PipelineAiToolAction)
-            .map((action) => action.format('result-part')),
-        },
-      );
+    const messages = compileMessages({
+      user: provided.messages.user,
+      history: provided.messages.history,
     });
 
     if (this.definition.debug) {

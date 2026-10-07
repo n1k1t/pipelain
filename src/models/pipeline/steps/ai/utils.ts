@@ -1,11 +1,13 @@
 import dayjs from 'dayjs';
 import _ from 'lodash';
 
-import { ModelMessage, Tool } from 'ai';
+import { ModelMessage, ProviderMetadata, Tool } from 'ai';
 import { ZodType } from 'zod/v3';
 import { zocker } from 'zocker';
 
+import type { TPipelineAiModelAction } from './types';
 import type { PipelineAiStep } from './index';
+import { PipelineAiReasoningAction, PipelineAiToolAction } from './actions';
 import { File } from '../../../file';
 
 const renderDebugHeader = (title: string): string => [
@@ -14,7 +16,64 @@ const renderDebugHeader = (title: string): string => [
   '@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@',
 ].join('\n');
 
-export const compileDebug = async <TSchema>(step: PipelineAiStep, parameters: {
+/** Compiles conversation messages from user prompt and history of previous attempts */
+export const compileMessages = (provided: {
+  user: string;
+
+  history?: {
+    actions: TPipelineAiModelAction[];
+    trace?: ProviderMetadata;
+  }[];
+}): ModelMessage[] => {
+  const messages: ModelMessage[] = [{
+    role: 'user',
+    content: provided.user,
+  }];
+
+  provided.history?.forEach((record) => {
+    if (record.actions.every((action) => action instanceof PipelineAiReasoningAction)) {
+      return messages.push({
+        role: 'assistant',
+        providerOptions: record.trace,
+
+        content: record.actions.map((action: PipelineAiReasoningAction) => action.format()),
+      });
+    }
+
+    messages.push(
+      {
+        role: 'assistant',
+        providerOptions: record.trace,
+
+        content: record.actions.map((action) =>
+          action instanceof PipelineAiReasoningAction
+            ? action.format()
+            : action.format('call-part')
+        ),
+      },
+      {
+        role: 'tool',
+        providerOptions: record.trace,
+
+        content: record.actions
+          .filter((action) => action instanceof PipelineAiToolAction)
+          .map((action) => action.format('result-part')),
+      },
+    );
+  });
+
+  // Some providers (e.g. Gemini) reject requests ending with a model turn
+  if (_.last(messages)?.role === 'assistant') {
+    messages.push({
+      role: 'user',
+      content: 'Previous attempt produced no output. Continue and provide the final answer.',
+    });
+  }
+
+  return messages;
+}
+
+export const compileDebug =async <TSchema>(step: PipelineAiStep, parameters: {
   messages: {
     system: string;
     user: string;
