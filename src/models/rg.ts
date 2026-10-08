@@ -2,6 +2,8 @@ import path from 'path';
 import fs from 'fs/promises';
 import z from 'zod/v3';
 
+import { lock } from 'proper-lockfile';
+
 import { Bash } from './bash';
 
 const platforms = <const>{
@@ -147,13 +149,34 @@ export class Rg {
     const dir = path.join(__dirname, '../../', '.bin');
     const bin = path.join(dir, `rg${process.platform === 'win32' ? '.exe' : ''}`);
 
-    if ((await fs.stat(bin).catch((): null => null))) {
+    if (await this.exists(bin)) {
       this.argv0 = bin;
       return bin;
     }
 
     await fs.mkdir(dir, { recursive: true });
 
+    // Concurrent calls (parallel tool calls or several processes) share the same `.bin` dir
+    const release = await lock(dir, {
+      stale: 10000,
+      update: 1000,
+      retries: { retries: 120, factor: 1, minTimeout: 500, maxTimeout: 500 },
+    });
+
+    try {
+      if (!(await this.exists(bin))) {
+        await this.install(dir, bin);
+      }
+    } finally {
+      await release();
+    }
+
+    this.argv0 = bin;
+    return bin;
+  }
+
+  /** Downloads and extracts `rg` into `dir` (should be called under lock) */
+  private async install(dir: string, bin: string): Promise<void> {
     const platform = <keyof typeof platforms>`${process.arch}-${process.platform}`;
     const config = platforms[platform];
 
@@ -175,34 +198,32 @@ export class Rg {
 
     await fs.writeFile(archive, Buffer.from(buffer));
 
-    if (config.extension === 'tar.gz') {
+    try {
       const bash = new Bash({ cwd: dir });
-      const tarArgs = ['-xzf', filename, '--strip-components=1'];
+      const tarArgs = config.extension === 'tar.gz'
+        ? ['-xzf', filename, '--strip-components=1']
+        // Modern windows has bsdtar which is able to extract zip archives
+        : ['-xf', filename, '--strip-components=1'];
 
-      if (process.platform === 'darwin') {
-        tarArgs.push('--include=*/rg');
-      } else {
-        tarArgs.push('--wildcards', '*/rg');
+      if (config.extension === 'tar.gz') {
+        tarArgs.push(...(process.platform === 'darwin' ? ['--include=*/rg'] : ['--wildcards', '*/rg']));
       }
 
-      await bash.exec(`tar ${tarArgs.join(' ')}`);
-    } else {
-      // Basic zip extraction for windows if needed, but here we assume tar is available or use a simple approach
-      // For simplicity in this environment, we'll try to use powershell or similar if on windows,
-      // but the example used a zip library which is not in dependencies.
-      // Given the environment, we'll stick to tar which is usually available on modern windows too.
-      const bash = new Bash({ cwd: dir });
-      await bash.exec(`tar -xf ${filename} --strip-components=1`);
+      const result = await bash.exec(['tar', ...tarArgs]);
+      if (result.status === 'ERROR') {
+        throw result.error;
+      }
+    } finally {
+      await fs.rm(archive, { force: true });
     }
-
-    await fs.unlink(archive);
 
     if (process.platform !== 'win32') {
       await fs.chmod(bin, 0o755);
     }
+  }
 
-    this.argv0 = bin;
-    return bin;
+  private async exists(location: string): Promise<boolean> {
+    return fs.stat(location).then(() => true, () => false);
   }
 
   private async which(cmd: string): Promise<string | null> {

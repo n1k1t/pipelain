@@ -224,15 +224,18 @@
                             <span class="action-name text-mono">{{llm.old.model}}</span>
                           {{else}}
                             <span class="action-type-badge badge-reasoning">REASONING</span>
+                            {{#if (previewText output)}}
+                              <span class="action-preview text-mono">{{previewText output}}</span>
+                            {{/if}}
                           {{/if}}
                         </div>
                         <div class="summary-right">
                           {{#if (eq type "ai:fallback")}}
-                            <span class="badge badge-error">{{error.type}}</span>
+                            <span class="action-type-badge badge-error">{{error.type}}</span>
                             <span class="time-tag">{{formatDuration meta.spent}}</span>
                           {{else}}
                             <span class="llm-tag text-muted">{{llm.name}}/{{llm.model}}</span>
-                            <span class="badge badge-{{meta.state}}">{{meta.state}}</span>
+                            <span class="action-type-badge badge-{{meta.state}}">{{meta.state}}</span>
                             <span class="time-tag">{{formatDuration meta.spent}}</span>
                           {{/if}}
                         </div>

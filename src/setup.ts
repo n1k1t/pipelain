@@ -43,6 +43,9 @@ hbs.registerHelper('tokens', (usage: LanguageModelUsage, kind: keyof ReturnType<
   usage ? extractLlmUsageTokens(usage)[kind] : 0
 );
 
+const previewText = (text: string) => _.truncate(text.replace(/\s+/g, ' ').trim(), { length: 300 });
+
+hbs.registerHelper('previewText', (text?: string) => typeof text === 'string' ? previewText(text) : '');
 hbs.registerHelper('previewInput', (input?: { type: 'json'; value: object } | { type: 'text'; value: string }) => {
   if (!input) {
     return '';
@@ -50,7 +53,7 @@ hbs.registerHelper('previewInput', (input?: { type: 'json'; value: object } | { 
 
   return input.type === 'json'
     ? preview(input.value, 300)
-    : _.truncate(input.value.replace(/\s+/g, ' ').trim(), { length: 300 });
+    : previewText(input.value);
 });
 
 hbs.registerHelper('formatTime', (timestamp: number) => new Date(timestamp).toLocaleTimeString());
