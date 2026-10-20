@@ -2,8 +2,9 @@ import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { LanguageModel } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 
-import { SetPartialKeys } from '../../../../types';
-import { LlmProvider } from './model';
+import { resolveRequestBodyTransformer } from './overrides';
+import { SetPartialKeys } from '../../../../../types';
+import { LlmProvider } from '../model';
 
 export class LlmProxyProvider extends LlmProvider<object> {
   public name: string = this.provided.name ?? 'proxy';
@@ -24,6 +25,7 @@ export class LlmProxyProvider extends LlmProvider<object> {
 
       includeUsage: true,
       supportsStructuredOutputs: true,
+      transformRequestBody: resolveRequestBodyTransformer(this.model),
     })(this.model);
   })();
 
