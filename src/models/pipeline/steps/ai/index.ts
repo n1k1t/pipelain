@@ -521,18 +521,18 @@ export class PipelineAiStep<
         converted.assign({ type: 'EMPTY_OUTPUT' });
       }
 
-      converted.assign({
-        sequence: _.uniq(
-          (provided.errors?.global ?? [])
-            .concat(provided.errors?.local ?? [])
-            .flatMap((nested) => nested.sequence.concat(nested))
-        ).filter((nested) => nested !== converted),
-      });
-
       const errors = {
         global: provided.errors?.global ?? [],
         local: (converted.is(['EMPTY_OUTPUT']) ? [] : (provided.errors?.local ?? [])).concat(converted),
       };
+
+      converted.assign({
+        sequence: _.uniq(
+          errors.global
+            .concat(errors.local)
+            .flatMap((nested) => nested.sequence.concat(nested))
+        ).filter((nested) => nested !== converted && nested.is(['BAD_API_CALL', 'WRONG_RESPONSE'])),
+      });
 
       const enough =
         (iteration < provided.llm.limit && !converted.is(['EMPTY_OUTPUT', 'WRONG_RESPONSE'])) ||
