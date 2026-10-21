@@ -521,6 +521,14 @@ export class PipelineAiStep<
         converted.assign({ type: 'EMPTY_OUTPUT' });
       }
 
+      converted.assign({
+        sequence: _.uniq(
+          (provided.errors?.global ?? [])
+            .concat(provided.errors?.local ?? [])
+            .flatMap((nested) => nested.sequence.concat(nested))
+        ).filter((nested) => nested !== converted),
+      });
+
       const errors = {
         global: provided.errors?.global ?? [],
         local: (converted.is(['EMPTY_OUTPUT']) ? [] : (provided.errors?.local ?? [])).concat(converted),
@@ -549,7 +557,7 @@ export class PipelineAiStep<
           },
         });
 
-        throw converted.assign({ sequence: errors.global });
+        throw converted;
       }
 
       if (fallback) {

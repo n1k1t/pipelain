@@ -7,7 +7,7 @@ export class PipelineAiError extends Error {
   public type: 'EMPTY_OUTPUT' | 'WRONG_RESPONSE' | 'BAD_API_CALL' = this.provided.type;
   public llm: LlmProvider = this.provided.llm;
 
-  /** Errors sequence bolong to this */
+  /** Flat list of unique errors preceding this one (from the earliest to the latest) */
   public sequence: PipelineAiError[] = this.provided.sequence ?? [];
   public reason: string = this.provided.reason ?? 'none';
 
@@ -36,18 +36,9 @@ export class PipelineAiError extends Error {
     return this;
   }
 
-  /** Returns full sequence of this error (in ascending order) */
+  /** Returns full sequence of this error (from the latest to the earliest) */
   public research(): PipelineAiError[] {
-    if (this.sequence.length) {
-      return _.uniq(
-        this.sequence
-          .reduce<PipelineAiError[]>((acc, error) => acc.concat(error.research()), [])
-          .concat(this)
-          .reverse()
-      );
-    }
-
-    return [this];
+    return this.sequence.concat(this).reverse();
   }
 
   static build(provided: PipelineAiError['provided']): PipelineAiError {
