@@ -11,12 +11,15 @@ export class PipelineAiError extends Error {
   public sequence: PipelineAiError[] = this.provided.sequence ?? [];
   public reason: string = this.provided.reason ?? 'none';
 
+  /** Error caused fallback to the next provider or throwing out of the step */
+  public fatal: boolean = this.provided.fatal ?? false;
   public source?: Error = this.provided.source;
 
   constructor(protected provided: Pick<PipelineAiError, 'type' | 'llm'> & {
     sequence?: PipelineAiError['sequence'];
     reason?: PipelineAiError['reason'];
     source?: PipelineAiError['source'];
+    fatal?: PipelineAiError['fatal'];
   }) {
     super(`Got error [${provided.type}] while generation. Reason: ${provided.reason}`);
   }
@@ -25,12 +28,15 @@ export class PipelineAiError extends Error {
     return types.includes(this.type);
   }
 
-  public assign(payload: Partial<Pick<PipelineAiError, 'type' | 'sequence'>>): this {
+  public assign(payload: Partial<Pick<PipelineAiError, 'type' | 'sequence' | 'fatal'>>): this {
     if (payload.type) {
       this.type = payload.type;
     }
     if (payload.sequence?.length) {
       this.sequence = payload.sequence;
+    }
+    if (payload.fatal !== undefined) {
+      this.fatal = payload.fatal;
     }
 
     return this;

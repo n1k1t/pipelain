@@ -541,6 +541,10 @@ export class PipelineAiStep<
 
       const fallback = enough ? provided.llm.next() : null;
 
+      if (enough) {
+        converted.assign({ fatal: true });
+      }
+
       if (!fallback && enough) {
         this.meta.actualize('ERROR');
         this.pipeline.session.emit('step:ai:error', {
