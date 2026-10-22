@@ -531,7 +531,7 @@ export class PipelineAiStep<
           errors.global
             .concat(errors.local)
             .flatMap((nested) => nested.sequence.concat(nested))
-        ).filter((nested) => nested !== converted && nested.is(['BAD_API_CALL', 'WRONG_RESPONSE'])),
+        ).filter((nested) => nested !== converted && (nested.fatal || nested.is(['BAD_API_CALL', 'WRONG_RESPONSE']))),
       });
 
       const enough =
