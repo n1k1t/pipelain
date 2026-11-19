@@ -16,10 +16,11 @@ Powerful utility to build and execute type-safe AI pipelines with structured out
 
 - [Features](#features)
 - [Installation](#installation)
-- [First Steps](#first-steps)
 - [Add Skills](#add-skills)
-- [Simple Example](#simple-example)
+- [Simple Example With Claude Code](#simple-example-with-claude-code)
+- [Simple Example With API_KEY](#simple-example-with-api_key)
 - [Environment Variables](#environment-variables)
+- [Supported LLM Providers](#supported-llm-providers)
 - [Pipeline Step Utilities](#pipeline-step-utilities)
   - [factory](#factory)
   - [utils](#utils)
@@ -62,14 +63,6 @@ Powerful utility to build and execute type-safe AI pipelines with structured out
 npm install @n1k1t/pipelain zod
 ```
 
-## First Steps
-
-To use the library, you need to provide an API key for the LLM provider. Create a `.env` file in your project root and add your key:
-
-```env
-PIPELAIN_API_KEY=your_api_key_here
-```
-
 ## Add Skills
 
 If you are using the [skills](https://www.npmjs.com/package/skills) package, you can add `n1k1t/pipelain` to your project using the following command:
@@ -78,7 +71,56 @@ If you are using the [skills](https://www.npmjs.com/package/skills) package, you
 npx skills add n1k1t/pipelain
 ```
 
-## Simple Example
+## Simple Example With `Claude Code`
+
+If [Claude Code](https://code.claude.com) is installed and you are logged in, you can run pipelines with the `claude-code` provider without an API key. The provider runs the local `claude` CLI, and pipeline tools are available to the model via a local MCP server:
+
+```ts
+import z from 'zod/v3';
+import { PipelineCompiler, llm } from '@n1k1t/pipelain';
+
+const summarize = PipelineCompiler
+  .build('Summarizer')
+  .input(z.string())
+  .step('summary', ({ factory, context, utils }) => factory
+    .ai('Summarizing')
+    .llm(() => llm.providers.LlmClaudeCodeProvider.build('sonnet', {
+      reasoning: 'low',
+      tools: factory.tools.files('read').provide(),
+    }))
+    .schema(z.object({
+      name: z.string().describe('Package name'),
+      summary: z.string().describe('Package purpose in 1 sentence'),
+    }))
+    .prompt([
+      utils.content.tasks([`Read the \`${context.input}\` file using \`read\` tool and describe the package`]),
+    ])
+  );
+
+(async () => {
+  const compiled = await summarize.compile();
+  const result = await compiled.run('package.json');
+
+  console.log(result.summary.name); // @n1k1t/pipelain
+})();
+```
+
+To use `claude-code` as the default provider for all steps, set it in the environment variables:
+
+```env
+PIPELAIN_PROVIDER=claude-code
+PIPELAIN_MODEL=sonnet
+```
+
+
+## Simple Example With `API_KEY`
+
+To use the library, you need to provide an API key for the LLM provider. Create a `.env` file in your project root and add your key:
+
+```env
+PIPELAIN_API_KEY=your_api_key_here
+PIPELAIN_MODEL=gemini-3.8-flash
+```
 
 A basic pipeline that translates text and returns a structured response:
 
@@ -119,10 +161,25 @@ The following environment variables are supported:
 | `PIPELAIN_API_URL` | Custom API URL for the LLM provider. | - |
 | `PIPELAIN_SKILLS_PATHS` | Directories paths where LLM skills are stored (separated by `;`). | `./.agents/skills;~/.agents/skills` |
 | `PIPELAIN_MODEL` | Default LLM model to use. | `gemini-flash-latest` |
-| `PIPELAIN_PROVIDER` | LLM provider name (e.g., `google`, `openai`). | - |
+| `PIPELAIN_PROVIDER` | LLM provider name (see [Supported LLM Providers](#supported-llm-providers)). | - |
 | `PIPELAIN_FLAGS_REPORT` | Save an HTML report of the pipeline execution. | `false` |
 | `PIPELAIN_FLAGS_DEBUG` | Enable debug mode for all AI steps. | `false` |
 | `EXA_API_KEY` | API key for Exa web search tools. | - |
+
+## Supported LLM Providers
+
+A provider is picked by `PIPELAIN_PROVIDER` (or the `provider` option of `LlmRouter`). Without it, the provider is detected by the model name. Any provider can also be built directly via `llm.providers.*`:
+
+| Provider | Class | Detected by model name | Description |
+| --- | --- | --- | --- |
+| `openai` | `LlmOpenaiProvider` | `gpt` (and any unmatched model) | OpenAI API via `@ai-sdk/openai`. |
+| `anthropic` | `LlmAnthropicProvider` | `claude` | Anthropic API via `@ai-sdk/anthropic`. |
+| `google` | `LlmGoogleProvider` | `gemini` | Google Generative AI API via `@ai-sdk/google`. |
+| `mistral` | `LlmMistralProvider` | `mistral`, `pixtral` | Mistral API via `@ai-sdk/mistral`. |
+| `proxy` | `LlmProxyProvider` | - | OpenAI-compatible gateways (LiteLLM, OpenRouter, corporate proxies). `gpt` models use the OpenAI client, other models use the OpenAI-compatible client with fixes for some models (e.g. DeepSeek structured output). Set `PIPELAIN_API_URL` to the gateway URL. |
+| `claude-code` | `LlmClaudeCodeProvider` | - | Local [Claude Code](https://code.claude.com) CLI. Works without an API key with the local login. Pipeline tools are bridged via a local MCP server, built-in Claude Code tools are disabled by default. `temperature` and other sampling settings are not supported. |
+
+All the providers take `connection` (`key` and `url`), `options` (typed by the provider), `temperature`, `reasoning`, `limit`, `tools`, `skills`, `mcp` and `fallback` in `build(model, parameters)`.
 
 ## Pipeline Step Utilities
 
@@ -578,7 +635,7 @@ const router = LlmRouter
 router.provide('claude-sonnet-4-5'); // Anthropic model with the setup above
 ```
 
-Supported providers are `openai`, `anthropic`, `google`, `mistral` and `proxy`. The setup connection can override only some fields (e.g. `key`); the other fields come from the router configuration. Handlers from `register` ignore setups.
+Supported providers are `openai`, `anthropic`, `google`, `mistral`, `proxy` and `claude-code`. The setup connection can override only some fields (e.g. `key`); the other fields come from the router configuration. Handlers from `register` ignore setups.
 
 ### MCP (Model Context Protocol) Integration
 
