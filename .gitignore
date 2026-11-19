@@ -16,7 +16,7 @@ npm-debug.log
 .bin/
 
 node_modules/
-test/
+launchers/
 lib/
 
 coverage/**

@@ -13,11 +13,11 @@ tsconfig.json
 .bin/
 .ai/
 
+/launchers/
 /coverage/
 /skills/
 /images/
 /types/
-/test/
 /src/
 
 /**/*.tsbuildinfo

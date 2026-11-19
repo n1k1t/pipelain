@@ -7,11 +7,12 @@ import * as providers from './providers';
 import env from '../../env';
 
 export interface ILlmRouterProviders {
-  anthropic: providers.LlmAnthropicProvider;
-  mistral: providers.LlmMistralProvider;
-  google: providers.LlmGoogleProvider;
-  openai: providers.LlmOpenaiProvider;
-  proxy: providers.LlmProxyProvider;
+  'claude-code': providers.LlmClaudeCodeProvider;
+  'anthropic': providers.LlmAnthropicProvider;
+  'mistral': providers.LlmMistralProvider;
+  'google': providers.LlmGoogleProvider;
+  'openai': providers.LlmOpenaiProvider;
+  'proxy': providers.LlmProxyProvider;
 }
 
 export interface ILlmRouterSetup<K extends TLlmModelProviderName = TLlmModelProviderName> {
@@ -62,6 +63,7 @@ export class LlmRouter {
       : this.define(model);
 
     switch (provider) {
+      case 'claude-code': return providers.LlmClaudeCodeProvider.build(model, this.compile('claude-code'));
       case 'anthropic': return providers.LlmAnthropicProvider.build(model, this.compile('anthropic'));
       case 'mistral': return providers.LlmMistralProvider.build(model, this.compile('mistral'));
       case 'google': return providers.LlmGoogleProvider.build(model, this.compile('google'));

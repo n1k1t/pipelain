@@ -1,3 +1,4 @@
+export * from './claude-code';
 export * from './anthropic';
 export * from './mistral';
 export * from './google';

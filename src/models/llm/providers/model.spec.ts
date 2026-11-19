@@ -4,7 +4,9 @@ import { LlmProvider } from './model';
 it('should initialize limit with default value 30', () => {
   class MockLlmProvider extends LlmProvider {
     public name = 'mock';
-    public tag = {} as any;
+    public compile() {
+      return {} as any;
+    }
     public clone(): this {
       return new MockLlmProvider(this.model, this.provided) as this;
     }
@@ -17,7 +19,9 @@ it('should initialize limit with default value 30', () => {
 it('should initialize limit from provided value', () => {
   class MockLlmProvider extends LlmProvider {
     public name = 'mock';
-    public tag = {} as any;
+    public compile() {
+      return {} as any;
+    }
     public clone(): this {
       return new MockLlmProvider(this.model, this.provided) as this;
     }
@@ -30,7 +34,9 @@ it('should initialize limit from provided value', () => {
 it('should initialize connection', () => {
   class MockLlmProvider extends LlmProvider {
     public name = 'mock';
-    public tag = {} as any;
+    public compile() {
+      return {} as any;
+    }
     public clone(): this {
       return new MockLlmProvider(this.model, this.provided) as this;
     }
@@ -44,7 +50,9 @@ it('should initialize connection', () => {
 it('should cast to another provider type', () => {
   class MockLlmProvider extends LlmProvider {
     public name = 'mock';
-    public tag = {} as any;
+    public compile() {
+      return {} as any;
+    }
     public clone(): this {
       return new MockLlmProvider(this.model, this.provided) as this;
     }
@@ -57,7 +65,9 @@ it('should cast to another provider type', () => {
 it('should return a new instance when calling assign', () => {
   class MockLlmProvider extends LlmProvider {
     public name = 'mock';
-    public tag = {} as any;
+    public compile() {
+      return {} as any;
+    }
     public clone(): this {
       return new MockLlmProvider(this.model, this.provided) as this;
     }
@@ -71,7 +81,9 @@ it('should return a new instance when calling assign', () => {
 it('should update temperature via assign', () => {
   class MockLlmProvider extends LlmProvider {
     public name = 'mock';
-    public tag = {} as any;
+    public compile() {
+      return {} as any;
+    }
     public clone(): this {
       return new MockLlmProvider(this.model, this.provided) as this;
     }
@@ -85,7 +97,9 @@ it('should update temperature via assign', () => {
 it('should update options via assign', () => {
   class MockLlmProvider extends LlmProvider {
     public name = 'mock';
-    public tag = {} as any;
+    public compile() {
+      return {} as any;
+    }
     public clone(): this {
       return new MockLlmProvider(this.model, this.provided) as this;
     }
@@ -99,7 +113,9 @@ it('should update options via assign', () => {
 it('should update fallback via assign', () => {
   class MockLlmProvider extends LlmProvider {
     public name = 'mock';
-    public tag = {} as any;
+    public compile() {
+      return {} as any;
+    }
     public clone(): this {
       return new MockLlmProvider(this.model, this.provided) as this;
     }
@@ -114,7 +130,9 @@ it('should update fallback via assign', () => {
 it('should update tools via assign', () => {
   class MockLlmProvider extends LlmProvider {
     public name = 'mock';
-    public tag = {} as any;
+    public compile() {
+      return {} as any;
+    }
     public clone(): this {
       return new MockLlmProvider(this.model, this.provided) as this;
     }
@@ -129,7 +147,9 @@ it('should update tools via assign', () => {
 it('should update skills via assign', () => {
   class MockLlmProvider extends LlmProvider {
     public name = 'mock';
-    public tag = {} as any;
+    public compile() {
+      return {} as any;
+    }
     public clone(): this {
       return new MockLlmProvider(this.model, this.provided) as this;
     }
@@ -144,7 +164,9 @@ it('should update skills via assign', () => {
 it('should update mcp via assign', () => {
   class MockLlmProvider extends LlmProvider {
     public name = 'mock';
-    public tag = {} as any;
+    public compile() {
+      return {} as any;
+    }
     public clone(): this {
       return new MockLlmProvider(this.model, this.provided) as this;
     }
@@ -159,7 +181,9 @@ it('should update mcp via assign', () => {
 it('should update limit via assign', () => {
   class MockLlmProvider extends LlmProvider {
     public name = 'mock';
-    public tag = {} as any;
+    public compile() {
+      return {} as any;
+    }
     public clone(): this {
       return new MockLlmProvider(this.model, this.provided) as this;
     }
@@ -173,7 +197,9 @@ it('should update limit via assign', () => {
 it('should update reasoning via assign', () => {
   class MockLlmProvider extends LlmProvider {
     public name = 'mock';
-    public tag = {} as any;
+    public compile() {
+      return {} as any;
+    }
     public clone(): this {
       return new MockLlmProvider(this.model, this.provided) as this;
     }
@@ -187,7 +213,9 @@ it('should update reasoning via assign', () => {
 it('should return null from next if no fallback providers', () => {
   class MockLlmProvider extends LlmProvider {
     public name = 'mock';
-    public tag = {} as any;
+    public compile() {
+      return {} as any;
+    }
     public clone(): this {
       return new MockLlmProvider(this.model, this.provided) as this;
     }
@@ -200,7 +228,9 @@ it('should return null from next if no fallback providers', () => {
 it('should return first provider from next', () => {
   class MockLlmProvider extends LlmProvider {
     public name = 'mock';
-    public tag = {} as any;
+    public compile() {
+      return {} as any;
+    }
     public clone(): this {
       return new MockLlmProvider(this.model, this.provided) as this;
     }
@@ -214,7 +244,9 @@ it('should return first provider from next', () => {
 it('should use restart strategy by default in next', () => {
   class MockLlmProvider extends LlmProvider {
     public name = 'mock';
-    public tag = {} as any;
+    public compile() {
+      return {} as any;
+    }
     public clone(): this {
       return new MockLlmProvider(this.model, this.provided) as this;
     }
@@ -228,7 +260,9 @@ it('should use restart strategy by default in next', () => {
 it('should propagate remaining fallbacks in next', () => {
   class MockLlmProvider extends LlmProvider {
     public name = 'mock';
-    public tag = {} as any;
+    public compile() {
+      return {} as any;
+    }
     public clone(): this {
       return new MockLlmProvider(this.model, this.provided) as this;
     }
@@ -243,7 +277,9 @@ it('should propagate remaining fallbacks in next', () => {
 it('should use provided strategy in next', () => {
   class MockLlmProvider extends LlmProvider {
     public name = 'mock';
-    public tag = {} as any;
+    public compile() {
+      return {} as any;
+    }
     public clone(): this {
       return new MockLlmProvider(this.model, this.provided) as this;
     }

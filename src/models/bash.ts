@@ -28,7 +28,7 @@ export class Bash {
     /** Command prefix like `npm` */
     argv0?: string;
 
-    env?: Record<string, string>;
+    env?: Record<string, string | undefined>;
     cwd?: string;
   }) {}
 
@@ -36,12 +36,23 @@ export class Bash {
    * Executes bash commands (resolves `stderr` into `{ status: 'ERROR', error: BashExecError(...) }`)
    * Pass `cmd` as array to spawn arguments as is (without string parsing)
    */
-  public async exec(cmd: string | string[]): Promise<TBashExecuted> {
+  public async exec(cmd: string | string[], parameters?: {
+    /** Content to write into `stdin` of the process */
+    stdin?: string;
+
+    /** Signal to kill the process (resolves into `{ status: 'ERROR' }`) */
+    signal?: AbortSignal;
+
+    /** Listener of `stdout` chunks to handle output while the process is running */
+    onStdout?: (chunk: string) => void;
+  }): Promise<TBashExecuted> {
     const options: SpawnOptions = {
       cwd: this.provided?.cwd ?? process.cwd(),
       env: this.provided?.env ?? process.env,
 
-      stdio: ['ignore', 'pipe', 'pipe'],
+      stdio: [parameters?.stdin === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
+
+      ...(parameters?.signal && { signal: parameters.signal }),
     };
 
     const args = Array.isArray(cmd)
@@ -66,8 +77,8 @@ export class Bash {
         })
       );
 
-      spawned.once('exit', (code) =>
-        !code
+      spawned.once('close', (code, signal) =>
+        !code && !signal
           ? resolve({
             status: 'OK',
             stdout: stdout.join('')
@@ -76,15 +87,25 @@ export class Bash {
             status: 'ERROR',
             error: new BashExecError(
               args.join(' '),
-              code,
-              (stderr.length ? stderr : stdout).join('').trim(),
+              code ?? -1,
+              (stderr.length ? stderr : stdout).join('').trim() || `Killed by signal [${signal}]`,
               stdout.join('')
             ),
           })
       );
 
       spawned.stderr?.on('data', (chunk: Buffer) => stderr.push(chunk.toString('utf8')));
-      spawned.stdout?.on('data', (chunk: Buffer) => stdout.push(chunk.toString('utf8')));
+      spawned.stdout?.on('data', (chunk: Buffer) => {
+        const content = chunk.toString('utf8');
+
+        stdout.push(content);
+        parameters?.onStdout?.(content);
+      });
+
+      if (parameters?.stdin !== undefined) {
+        spawned.stdin?.on('error', () => undefined);
+        spawned.stdin?.end(parameters.stdin);
+      }
     });
   }
 

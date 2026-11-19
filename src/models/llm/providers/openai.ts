@@ -7,10 +7,12 @@ import { LlmProvider } from './model';
 export class LlmOpenaiProvider extends LlmProvider<OpenAIChatLanguageModelOptions> {
   public name: string = 'openai';
 
-  public tag: LanguageModel = createOpenAI({
-    apiKey: this.connection.key,
-    baseURL: this.connection.url,
-  })(this.model);
+  public compile(): LanguageModel {
+    return createOpenAI({
+      apiKey: this.connection.key,
+      baseURL: this.connection.url,
+    })(this.model);
+  }
 
   public clone(): this {
     const clone = LlmOpenaiProvider.build(this.model, {

@@ -1,4 +1,4 @@
-import { LanguageModel } from 'ai';
+import { LanguageModel, Tool } from 'ai';
 
 import { LlmToolCompiler } from '../tools/model';
 import { Constructable } from '../../../../types';
@@ -25,7 +25,6 @@ export interface ILlmProviderFallback {
 
 export abstract class LlmProvider<TOptions extends object = any> {
   public abstract name: string;
-  public abstract tag: LanguageModel;
 
   /** Model agent steps count limit `30 default` */
   public limit: number = this.provided.limit ?? 30;
@@ -66,6 +65,12 @@ export abstract class LlmProvider<TOptions extends object = any> {
   }) {}
 
   public abstract clone(): this;
+
+  /**
+   * Compiles the language model for a call from actual provider fields
+   * Executable tools are used by providers which execute tools by themselves
+   */
+  public abstract compile(provided: { tools: Record<string, Tool> }): LanguageModel;
 
   /** Casts options from specific provider */
   public cast<T extends object>(Provider: Constructable<LlmProvider<T>>): LlmProvider<T> {

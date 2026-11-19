@@ -7,10 +7,12 @@ import { LlmProvider } from './model';
 export class LlmMistralProvider extends LlmProvider<MistralLanguageModelOptions> {
   public name: string = 'mistral';
 
-  public tag: LanguageModel = createMistral({
-    apiKey: this.connection.key,
-    baseURL: this.connection.url,
-  })(this.model);
+  public compile(): LanguageModel {
+    return createMistral({
+      apiKey: this.connection.key,
+      baseURL: this.connection.url,
+    })(this.model);
+  }
 
   public clone(): this {
     const clone = LlmMistralProvider.build(this.model, {

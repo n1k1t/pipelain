@@ -7,10 +7,12 @@ import { LlmProvider } from './model';
 export class LlmGoogleProvider extends LlmProvider<GoogleLanguageModelOptions> {
   public name: string = 'google';
 
-  public tag: LanguageModel = createGoogleGenerativeAI({
-    apiKey: this.connection.key,
-    baseURL: this.connection.url,
-  })(this.model);
+  public compile(): LanguageModel {
+    return createGoogleGenerativeAI({
+      apiKey: this.connection.key,
+      baseURL: this.connection.url,
+    })(this.model);
+  }
 
   public clone(): this {
     const clone = LlmGoogleProvider.build(this.model, {

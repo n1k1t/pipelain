@@ -9,7 +9,11 @@ import { LlmProvider } from '../model';
 export class LlmProxyProvider extends LlmProvider<object> {
   public name: string = this.provided.name ?? 'proxy';
 
-  public tag: LanguageModel = (() => {
+  constructor(model: string, protected provided: LlmProvider<object>['provided'] & { name?: string }) {
+    super(model, provided);
+  }
+
+  public compile(): LanguageModel {
     if (this.model.includes('gpt')) {
       return createOpenAI({
         apiKey: this.connection.key,
@@ -27,10 +31,6 @@ export class LlmProxyProvider extends LlmProvider<object> {
       supportsStructuredOutputs: true,
       transformRequestBody: resolveRequestBodyTransformer(this.model),
     })(this.model);
-  })();
-
-  constructor(model: string, protected provided: LlmProvider<object>['provided'] & { name?: string }) {
-    super(model, provided);
   }
 
   public clone(): this {

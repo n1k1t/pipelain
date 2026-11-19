@@ -37,7 +37,7 @@ it('should call createOpenAI when model name contains gpt', () => {
     limit: 100,
     skills: [],
     mcp: [],
-  });
+  }).compile();
   expect(spy).toHaveBeenCalled();
   spy.mockRestore();
 });
@@ -53,7 +53,7 @@ it('should call createOpenAICompatible when model name does not contain gpt', ()
     limit: 100,
     skills: [],
     mcp: [],
-  });
+  }).compile();
   expect(spy).toHaveBeenCalled();
   spy.mockRestore();
 });
@@ -69,7 +69,7 @@ it('should use "none" as baseURL for createOpenAICompatible if connection url is
     limit: 100,
     skills: [],
     mcp: [],
-  });
+  }).compile();
   expect(spy).toHaveBeenCalledWith(expect.objectContaining({ baseURL: 'none' }));
   spy.mockRestore();
 });
@@ -80,7 +80,7 @@ it('should pass request body transformer to createOpenAICompatible for deepseek 
 
   LlmProxyProvider.build('deepseek/deepseek-v4-flash', {
     connection: { key: 'key', url: 'url' },
-  });
+  }).compile();
 
   expect(spy).toHaveBeenCalledWith(expect.objectContaining({ transformRequestBody: expect.any(Function) }));
   spy.mockRestore();

@@ -7,10 +7,12 @@ import { LlmProvider } from './model';
 export class LlmAnthropicProvider extends LlmProvider<AnthropicLanguageModelOptions> {
   public name: string = 'anthropic';
 
-  public tag: LanguageModel = createAnthropic({
-    apiKey: this.connection.key,
-    baseURL: this.connection.url,
-  })(this.model);
+  public compile(): LanguageModel {
+    return createAnthropic({
+      apiKey: this.connection.key,
+      baseURL: this.connection.url,
+    })(this.model);
+  }
 
   public clone(): this {
     const clone = LlmAnthropicProvider.build(this.model, {
