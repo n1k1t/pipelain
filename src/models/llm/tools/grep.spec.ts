@@ -40,3 +40,10 @@ it('should render errors after matches', async () => {
     'src/a.ts:3: query()\n\nErrors:\nrg: missing: No such file or directory (os error 2)'
   );
 });
+
+it('should resolve absolute paths inside project into relative ones', async () => {
+  const spy = jest.spyOn(Rg.prototype, 'exec').mockResolvedValue({ matches: [], errors: [] });
+  await execute({ pattern: 'query', path: '/project/src /project' });
+
+  expect(spy.mock.calls[0][1]?.paths).toEqual(['src', '.']);
+});

@@ -5,7 +5,7 @@ import fs from 'fs/promises';
 import { z } from 'zod/v3';
 
 import { LlmToolCompiler, LlmToolExecutionError } from './model';
-import { checkPatternIsRestricted } from './utils';
+import { checkPatternIsRestricted, resolvePath } from './utils';
 
 export default LlmToolCompiler
   .build<{
@@ -18,8 +18,10 @@ export default LlmToolCompiler
     })
   )
   .output(z.string().describe('Success message'))
-  .execute(({ context, options }) => async ({ path: location }) => {
+  .execute(({ context, options }) => async ({ path: provided }) => {
     try {
+      const location = resolvePath(provided, context.project.cwd);
+
       if (!checkPatternIsRestricted(location)) {
         throw LlmToolExecutionError.build(`Path "${location}" is going to out of scope the project`);
       }

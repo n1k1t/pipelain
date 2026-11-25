@@ -2,7 +2,7 @@ import minimatch from 'minimatch';
 import { z } from 'zod/v3';
 
 import { LlmToolCompiler, LlmToolExecutionError } from './model';
-import { checkPatternIsRestricted } from './utils';
+import { checkPatternIsRestricted, resolvePath } from './utils';
 import { File } from '../../file';
 
 export default LlmToolCompiler
@@ -17,8 +17,10 @@ export default LlmToolCompiler
     })
   )
   .output(z.string().describe('Success message'))
-  .execute(({ context, options }) => async ({ path, content }) => {
+  .execute(({ context, options }) => async ({ path: provided, content }) => {
     try {
+      const path = resolvePath(provided, context.project.cwd);
+
       if (!checkPatternIsRestricted(path)) {
         throw LlmToolExecutionError.build(`Path "${path}" is going to out of scope the project`);
       }

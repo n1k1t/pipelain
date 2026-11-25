@@ -4,7 +4,7 @@ import fs from 'fs/promises';
 import { z } from 'zod/v3';
 
 import { LlmToolCompiler, LlmToolExecutionError } from './model';
-import { checkPatternIsRestricted } from './utils';
+import { checkPatternIsRestricted, resolvePath } from './utils';
 import { ArticleContent } from '../../content';
 
 export default LlmToolCompiler
@@ -30,8 +30,10 @@ export default LlmToolCompiler
     })
   )
   .output(z.string().describe('List of entries in the directory separated by newline'))
-  .execute(({ context }) => async ({ path: location }) => {
+  .execute(({ context }) => async ({ path: provided }) => {
     try {
+      const location = resolvePath(provided, context.project.cwd);
+
       if (!checkPatternIsRestricted(location)) {
         throw LlmToolExecutionError.build(`Path "${location}" is going to out of scope the project`);
       }

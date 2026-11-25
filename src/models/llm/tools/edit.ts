@@ -5,7 +5,7 @@ import { lock } from 'proper-lockfile';
 import { z } from 'zod/v3';
 
 import { LlmToolCompiler, LlmToolExecutionError } from './model';
-import { checkPatternIsRestricted } from './utils';
+import { checkPatternIsRestricted, resolvePath } from './utils';
 import { TFunction } from '../../../../types';
 import { File } from '../../file';
 import { cast } from '../../../utils';
@@ -28,12 +28,14 @@ export default LlmToolCompiler
     })
   )
   .output(z.string().describe('Success message'))
-  .execute(({ context, options }) => async ({ path: location, replacements }) => {
+  .execute(({ context, options }) => async ({ path: provided, replacements }) => {
     const mutex = {
       release: cast<null | TFunction<Promise<void>>>(null),
     };
 
     try {
+      const location = resolvePath(provided, context.project.cwd);
+
       if (!checkPatternIsRestricted(location)) {
         throw LlmToolExecutionError.build(`Path "${location}" is going to out of scope the project`);
       }

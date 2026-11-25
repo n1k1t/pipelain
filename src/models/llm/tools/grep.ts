@@ -4,7 +4,7 @@ import _ from 'lodash';
 import { z } from 'zod/v3';
 
 import { LlmToolCompiler, LlmToolExecutionError } from './model';
-import { checkPatternIsRestricted } from './utils';
+import { checkPatternIsRestricted, resolvePath } from './utils';
 import { ArticleContent } from '../../content';
 import { Rg } from '../../rg';
 
@@ -52,7 +52,7 @@ export default LlmToolCompiler
   .output(z.string().describe('Search results'))
   .execute(({ context }) => async ({ pattern, path: location, include }) => {
     try {
-      const paths = location ? parseArgsStringToArgv(location) : [];
+      const paths = (location ? parseArgsStringToArgv(location) : []).map((nested) => resolvePath(nested, context.project.cwd));
 
       if (paths.some((nested) => !checkPatternIsRestricted(nested))) {
         throw LlmToolExecutionError.build('Pattern or path is going to out of scope the project');

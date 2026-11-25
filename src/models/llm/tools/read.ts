@@ -1,7 +1,7 @@
 import { z } from 'zod/v3';
 
 import { LlmToolCompiler, LlmToolExecutionError } from './model';
-import { checkPatternIsRestricted } from './utils';
+import { checkPatternIsRestricted, resolvePath } from './utils';
 import { ArticleContent } from '../../content';
 import { File } from '../../file';
 
@@ -40,8 +40,10 @@ export default LlmToolCompiler
     })
   )
   .output(z.string().describe('File content'))
-  .execute(({ context }) => async ({ path, start, end }) => {
+  .execute(({ context }) => async ({ path: provided, start, end }) => {
     try {
+      const path = resolvePath(provided, context.project.cwd);
+
       if (!checkPatternIsRestricted(path)) {
         throw LlmToolExecutionError.build(`Path "${path}" is going to out of scope the project`);
       }
