@@ -7,11 +7,13 @@ import * as providers from './providers';
 import env from '../../env';
 
 export interface ILlmRouterProviders {
+  'antigravity': providers.LlmAntigravityProvider;
   'claude-code': providers.LlmClaudeCodeProvider;
   'anthropic': providers.LlmAnthropicProvider;
   'mistral': providers.LlmMistralProvider;
   'google': providers.LlmGoogleProvider;
   'openai': providers.LlmOpenaiProvider;
+  'codex': providers.LlmCodexProvider;
   'proxy': providers.LlmProxyProvider;
 }
 
@@ -64,6 +66,8 @@ export class LlmRouter {
 
     switch (provider) {
       case 'claude-code': return providers.LlmClaudeCodeProvider.build(model, this.compile('claude-code'));
+      case 'codex': return providers.LlmCodexProvider.build(model, this.compile('codex'));
+      case 'antigravity': return providers.LlmAntigravityProvider.build(model, this.compile('antigravity'));
       case 'anthropic': return providers.LlmAnthropicProvider.build(model, this.compile('anthropic'));
       case 'mistral': return providers.LlmMistralProvider.build(model, this.compile('mistral'));
       case 'google': return providers.LlmGoogleProvider.build(model, this.compile('google'));

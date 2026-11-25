@@ -1,9 +1,7 @@
 import _ from 'lodash';
 
-import type { ServerResponse } from 'node:http';
 import type { ILlmProviderConnection } from '../model';
 import type {
-  ILlmClaudeCodeJsonRpcMessage,
   ILlmClaudeCodeOptions,
   ILlmClaudeCodeResultEvent,
   TLlmClaudeCodeAuth,
@@ -12,14 +10,13 @@ import type {
   TLlmClaudeCodeEvent,
   TLlmClaudeCodeFinishPart,
   TLlmClaudeCodeStreamPart,
-  TLlmClaudeCodeWarning,
 } from './types';
 
-/** Name of the MCP server which bridges pipeline tools into Claude Code */
-export const BRIDGE_NAME = 'pipelain';
+import { LLM_BRIDGE_NAME, LlmBridge } from '../../bridge';
+import { convertToolContent } from '../../utils';
 
 /** Prefix of the bridged pipeline tools in Claude Code */
-export const BRIDGE_PREFIX = `mcp__${BRIDGE_NAME}__`;
+export const BRIDGE_PREFIX = `mcp__${LLM_BRIDGE_NAME}__`;
 
 const AUTH_ENV_VARIABLES = {
   'oauth': 'CLAUDE_CODE_OAUTH_TOKEN',
@@ -47,107 +44,10 @@ export const compileEnv = (
   };
 };
 
-/** Splits the prompt into the system prompt and the user message (history is rendered as a transcript) */
-export const compilePrompt = (prompt: TLlmClaudeCodeCallOptions['prompt']): {
-  system?: string;
-  user: string;
-  warnings: TLlmClaudeCodeWarning[];
-} => {
-  const warnings: TLlmClaudeCodeWarning[] = [];
-  const system = prompt.flatMap((message) => message.role === 'system' ? [message.content] : []);
-  const messages = prompt.filter((message) => message.role !== 'system');
-
-  const render = (message: (typeof messages)[number]): string => message.content
-    .map((part) => {
-      switch (part.type) {
-        case 'text': return part.text;
-        case 'tool-call': return `[tool call ${part.toolName}] ${JSON.stringify(part.input)}`;
-        case 'tool-result': return `[tool result ${part.toolName}] ${JSON.stringify(part.output)}`;
-
-        case 'file': {
-          warnings.push({ type: 'unsupported', feature: 'file', details: 'Files are not passed to Claude Code CLI' });
-          return '';
-        }
-
-        default: return '';
-      }
-    })
-    .filter((text) => text.length)
-    .join('\n');
-
-  const user = messages.length === 1 && messages[0].role === 'user'
-    ? render(messages[0])
-    : messages.map((message) => `<${message.role}>\n${render(message)}\n</${message.role}>`).join('\n\n');
-
-  return {
-    user,
-    warnings,
-
-    ...(system.length && { system: system.join('\n\n') }),
-  };
-};
-
-/**
- * Compiles JSON schema for `--json-schema` (Claude Code accepts only `object` root)
- * A schema with another root is wrapped into `{ value }` object and extracted back from the output
- */
-export const compileSchema = (schema: object): {
-  value: object;
-  extract: (output: unknown) => unknown;
-} => {
-  const { $schema, ...value } = <{ $schema?: string, type?: unknown }>schema;
-
-  if (value.type === 'object') {
-    return { value, extract: (output) => output };
-  }
-
-  return {
-    value: {
-      type: 'object',
-      properties: { value },
-
-      required: ['value'],
-      additionalProperties: false,
-    },
-
-    extract: (output) => _.isObject(output) && 'value' in output ? output.value : output,
-  };
-};
-
-/** Collects warnings about call options which are not supported by Claude Code CLI */
-export const collectWarnings = (options: TLlmClaudeCodeCallOptions, bridged: string[] = []): TLlmClaudeCodeWarning[] => {
-  const unsupported = <const>['temperature', 'topP', 'topK', 'seed', 'stopSequences', 'presencePenalty', 'frequencyPenalty'];
-  const skipped = (options.tools ?? []).filter((tool) => !bridged.includes(tool.name));
-
-  return [
-    ...unsupported
-      .filter((feature) => options[feature] !== undefined)
-      .map((feature): TLlmClaudeCodeWarning => ({ type: 'unsupported', feature })),
-
-    ...(skipped.length
-      ? [<TLlmClaudeCodeWarning>{
-        type: 'unsupported',
-        feature: 'tools',
-        details: `Tools [${skipped.map((tool) => tool.name).join(', ')}] are not executable and are not passed to Claude Code CLI`,
-      }]
-      : []),
-  ];
-};
-
 /** Converts Claude Code tool name (bridged pipeline tools lose the MCP prefix, other tools are dynamic) */
 export const convertToolName = (name: string): { name: string; dynamic: boolean } => name.startsWith(BRIDGE_PREFIX)
   ? { name: name.slice(BRIDGE_PREFIX.length), dynamic: false }
   : { name, dynamic: true };
-
-/** Converts content of Claude Code tool result (text blocks of MCP result are joined) */
-export const convertToolResult = (content: unknown): unknown => {
-  const blocks = Array.isArray(content) ? content : [];
-  const texts = blocks.flatMap((block) => _.isObject(block) && 'type' in block && block.type === 'text' && 'text' in block
-    ? [String(block.text)]
-    : []);
-
-  return blocks.length && texts.length === blocks.length ? texts.join('\n') : content ?? '';
-};
 
 /**
  * Converts Claude Code CLI event into stream parts
@@ -210,7 +110,7 @@ export const convertEvent = (event: TLlmClaudeCodeEvent, tools: Map<string, stri
 
         toolCallId: block.tool_use_id,
         toolName: tool.name,
-        result: <NonNullable<Extract<TLlmClaudeCodeStreamPart, { type: 'tool-result' }>['result']>>convertToolResult(block.content),
+        result: <NonNullable<Extract<TLlmClaudeCodeStreamPart, { type: 'tool-result' }>['result']>>convertToolContent(block.content),
 
         isError: block.is_error ?? false,
         ...(tool.dynamic && { dynamic: true }),
@@ -275,29 +175,13 @@ export const convertReasoning = (
   }
 };
 
-/** Awaits tool output (the last value of a streamed output is used) */
-export const consumeToolOutput = async (output: unknown): Promise<unknown> => {
-  if (!_.isObject(output) || !(Symbol.asyncIterator in output)) {
-    return output;
-  }
-
-  let last: unknown;
-
-  for await (const value of <AsyncIterable<unknown>>output) {
-    last = value;
-  }
-
-  return last;
-};
-
-/** Writes HTTP answer of the bridge (body is serialized into JSON) */
-export const reply = (response: ServerResponse, code: number, body?: object): void => {
-  if (!body) {
-    return void response.writeHead(code).end();
-  }
-
-  response.writeHead(code, { 'Content-Type': 'application/json' }).end(JSON.stringify(body));
-};
-
-export const isJsonRpcMessage = (value: unknown): value is ILlmClaudeCodeJsonRpcMessage =>
-  _.isObject(value) && 'method' in value && typeof value.method === 'string';
+/** Compiles MCP config of the bridge for `--mcp-config` */
+export const compileMcpConfig = (bridge: LlmBridge): object => ({
+  mcpServers: {
+    [bridge.name]: {
+      type: 'http',
+      url: bridge.url,
+      headers: { Authorization: `Bearer ${bridge.token}` },
+    },
+  },
+});

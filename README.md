@@ -18,6 +18,7 @@ Powerful utility to build and execute type-safe AI pipelines with structured out
 - [Installation](#installation)
 - [Add Skills](#add-skills)
 - [Simple Example With Claude Code](#simple-example-with-claude-code)
+- [Simple Example With Codex or Antigravity](#simple-example-with-codex-or-antigravity)
 - [Simple Example With API_KEY](#simple-example-with-api_key)
 - [Environment Variables](#environment-variables)
 - [Supported LLM Providers](#supported-llm-providers)
@@ -112,6 +113,32 @@ PIPELAIN_PROVIDER=claude-code
 PIPELAIN_MODEL=sonnet
 ```
 
+## Simple Example With `Codex` or `Antigravity`
+
+Other local agent CLIs work the same way as Claude Code: they run without an API key with the local login, and pipeline tools are bridged via a local MCP server. Replace the provider in the example above:
+
+- `LlmCodexProvider` (`codex`) runs the local [Codex](https://developers.openai.com/codex/cli) CLI (`codex exec`).
+- `LlmAntigravityProvider` (`antigravity`) runs the local [Antigravity](https://antigravity.google) CLI (`agy`).
+
+```ts
+.llm(() => llm.providers.LlmCodexProvider.build('gpt-5.4-mini', {
+  reasoning: 'low',
+  tools: factory.tools.files('read').provide(),
+}))
+
+.llm(() => llm.providers.LlmAntigravityProvider.build('gemini-3.8-flash-low', {
+  reasoning: 'low',
+  tools: factory.tools.files('read').provide(),
+}))
+```
+
+To use one of them as the default provider for all steps:
+
+```env
+PIPELAIN_PROVIDER=antigravity
+PIPELAIN_MODEL=gemini-3.8-flash-low
+```
+
 
 ## Simple Example With `API_KEY`
 
@@ -178,6 +205,8 @@ A provider is picked by `PIPELAIN_PROVIDER` (or the `provider` option of `LlmRou
 | `mistral` | `LlmMistralProvider` | `mistral`, `pixtral` | Mistral API via `@ai-sdk/mistral`. |
 | `proxy` | `LlmProxyProvider` | - | OpenAI-compatible gateways (LiteLLM, OpenRouter, corporate proxies). `gpt` models use the OpenAI client, other models use the OpenAI-compatible client with fixes for some models (e.g. DeepSeek structured output). Set `PIPELAIN_API_URL` to the gateway URL. |
 | `claude-code` | `LlmClaudeCodeProvider` | - | Local [Claude Code](https://code.claude.com) CLI. Works without an API key with the local login. Pipeline tools are bridged via a local MCP server, built-in Claude Code tools are disabled by default. `temperature` and other sampling settings are not supported. |
+| `codex` | `LlmCodexProvider` | - | Local [Codex](https://developers.openai.com/codex/cli) CLI (`codex exec`). Works without an API key with the local login, the connection key is passed as `CODEX_API_KEY`. Runs without sandbox and approvals, pipeline tools are bridged via a local MCP server, built-in Codex tools (`shell`, `web_search`, `view_image`, `image_generation`) and project instructions (`AGENTS.md`) are disabled by default. |
+| `antigravity` | `LlmAntigravityProvider` | - | Local [Antigravity](https://antigravity.google) CLI (`agy`). Works without an API key with the local login, the connection key is passed as `GEMINI_API_KEY`. Runs as a custom agent with the step system prompt and auto-approves all the tool calls, pipeline tools are bridged via a local MCP server, built-in Antigravity tools (`run_command`, `view_file`, `write_to_file`, `search_web`, ...) are disabled by default. |
 
 All the providers take `connection` (`key` and `url`), `options` (typed by the provider), `temperature`, `reasoning`, `limit`, `tools`, `skills`, `mcp` and `fallback` in `build(model, parameters)`.
 
@@ -635,7 +664,7 @@ const router = LlmRouter
 router.provide('claude-sonnet-4-5'); // Anthropic model with the setup above
 ```
 
-Supported providers are `openai`, `anthropic`, `google`, `mistral`, `proxy` and `claude-code`. The setup connection can override only some fields (e.g. `key`); the other fields come from the router configuration. Handlers from `register` ignore setups.
+Supported providers are `openai`, `anthropic`, `google`, `mistral`, `proxy`, `claude-code`, `codex` and `antigravity`. The setup connection can override only some fields (e.g. `key`); the other fields come from the router configuration. Handlers from `register` ignore setups.
 
 ### MCP (Model Context Protocol) Integration
 

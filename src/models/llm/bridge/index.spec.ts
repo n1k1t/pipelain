@@ -1,52 +1,50 @@
 import { tool } from 'ai';
 import z from 'zod/v3';
 
-import { LlmClaudeCodeBridge } from './bridge';
-
-const definitions = [
-  { type: 'function', name: 'sum', description: 'Sums numbers', inputSchema: { type: 'object' } },
-  { type: 'function', name: 'fail', description: 'Fails', inputSchema: { type: 'object' } },
-  { type: 'function', name: 'described', description: 'Without execute', inputSchema: { type: 'object' } },
-] as const;
+import { LlmBridge } from './index';
 
 const tools = {
   sum: tool({
+    description: 'Sums numbers',
     inputSchema: z.object({ a: z.number(), b: z.number() }),
     execute: ({ a, b }) => ({ sum: a + b }),
   }),
   fail: tool({
+    description: 'Fails',
     inputSchema: z.object({}),
     execute: async (): Promise<string> => {
       throw new Error('Boom');
     },
   }),
   described: tool({
+    description: 'Without execute',
     inputSchema: z.object({}),
   }),
 };
 
-const request = (bridge: LlmClaudeCodeBridge, body: object, token: string = bridge.token) => fetch(bridge.url!, {
+const request = (bridge: LlmBridge, body: object, token: string = bridge.token) => fetch(bridge.url!, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
   body: JSON.stringify(body),
 });
 
-let bridge: LlmClaudeCodeBridge;
+let bridge: LlmBridge;
 
 beforeEach(async () => {
-  bridge = await LlmClaudeCodeBridge.build(tools, [...definitions]).open();
+  bridge = await LlmBridge.build(tools)!.open();
 });
 
 afterEach(() => bridge.close());
 
 it('build should expose only executable tools', () => {
-  expect(bridge.names).toEqual(['sum', 'fail']);
+  expect(bridge.name).toBe('pipelain');
+  expect(Object.keys(bridge.tools)).toEqual(['sum', 'fail']);
   expect(bridge.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/mcp$/);
-  expect(bridge.config).toEqual({
-    mcpServers: {
-      pipelain: { type: 'http', url: bridge.url, headers: { Authorization: `Bearer ${bridge.token}` } },
-    },
-  });
+});
+
+it('build should return null without executable tools', () => {
+  expect(LlmBridge.build({})).toBeNull();
+  expect(LlmBridge.build({ described: tools.described })).toBeNull();
 });
 
 it('should reject requests without token', async () => {
@@ -83,12 +81,20 @@ it('should accept notifications', async () => {
   expect(response.status).toBe(202);
 });
 
-it('should list tools', async () => {
+it('should list tools with JSON schema of input', async () => {
   const response = await request(bridge, { jsonrpc: '2.0', id: 2, method: 'tools/list' });
 
   expect((await response.json()).result.tools).toEqual([
-    { name: 'sum', description: 'Sums numbers', inputSchema: { type: 'object' } },
-    { name: 'fail', description: 'Fails', inputSchema: { type: 'object' } },
+    {
+      name: 'sum',
+      description: 'Sums numbers',
+      inputSchema: expect.objectContaining({
+        type: 'object',
+        properties: { a: { type: 'number' }, b: { type: 'number' } },
+        required: ['a', 'b'],
+      }),
+    },
+    { name: 'fail', description: 'Fails', inputSchema: expect.objectContaining({ type: 'object' }) },
   ]);
 });
 

@@ -1,30 +1,22 @@
 import {
-  collectWarnings,
-  compilePrompt,
-  compileSchema,
+  compileMcpConfig,
   compileEnv,
-  consumeToolOutput,
   convertEvent,
   convertReasoning,
   convertResult,
-  isJsonRpcMessage,
 } from './utils';
 
-it('consumeToolOutput should await output and take the last value of streamed output', async () => {
-  async function* stream() {
-    yield 'a';
-    yield 'b';
-  }
+import { LlmBridge } from '../../bridge';
 
-  expect(await consumeToolOutput(Promise.resolve({ a: 1 }))).toEqual({ a: 1 });
-  expect(await consumeToolOutput('plain')).toBe('plain');
-  expect(await consumeToolOutput(stream())).toBe('b');
-});
+it('compileMcpConfig should compile HTTP MCP config of the bridge', () => {
+  const bridge = new LlmBridge({});
+  bridge.url = 'http://127.0.0.1:1/mcp';
 
-it('isJsonRpcMessage should check method', () => {
-  expect(isJsonRpcMessage({ jsonrpc: '2.0', method: 'ping' })).toBe(true);
-  expect(isJsonRpcMessage({ jsonrpc: '2.0' })).toBe(false);
-  expect(isJsonRpcMessage(null)).toBe(false);
+  expect(compileMcpConfig(bridge)).toEqual({
+    mcpServers: {
+      pipelain: { type: 'http', url: 'http://127.0.0.1:1/mcp', headers: { Authorization: `Bearer ${bridge.token}` } },
+    },
+  });
 });
 
 it('compileEnv should keep env as is without connection key', () => {
@@ -47,75 +39,6 @@ it('compileEnv should pass connection key into variable of auth option', () => {
 it('compileEnv should pass connection url into ANTHROPIC_BASE_URL', () => {
   const env = compileEnv({ env: {}, auth: 'bearer' }, { key: 'key', url: 'https://proxy' });
   expect(env).toEqual({ ANTHROPIC_AUTH_TOKEN: 'key', ANTHROPIC_BASE_URL: 'https://proxy' });
-});
-
-it('compileSchema should keep object schema and remove $schema', () => {
-  const compiled = compileSchema({
-    $schema: 'http://json-schema.org/draft-07/schema#',
-    type: 'object',
-    properties: { a: { type: 'string' } },
-  });
-
-  expect(compiled.value).toEqual({ type: 'object', properties: { a: { type: 'string' } } });
-  expect(compiled.extract({ a: 'x' })).toEqual({ a: 'x' });
-});
-
-it('compileSchema should wrap non object schema into value property', () => {
-  const compiled = compileSchema({ type: 'array', items: { type: 'number' } });
-
-  expect(compiled.value).toEqual({
-    type: 'object',
-    properties: { value: { type: 'array', items: { type: 'number' } } },
-    required: ['value'],
-    additionalProperties: false,
-  });
-
-  expect(compiled.extract({ value: [1, 2] })).toEqual([1, 2]);
-});
-
-it('compilePrompt should split system and single user message', () => {
-  const compiled = compilePrompt([
-    { role: 'system', content: 'sys' },
-    { role: 'user', content: [{ type: 'text', text: 'hi' }] },
-  ]);
-
-  expect(compiled).toEqual({ system: 'sys', user: 'hi', warnings: [] });
-});
-
-it('compilePrompt should render history as transcript', () => {
-  const compiled = compilePrompt([
-    { role: 'user', content: [{ type: 'text', text: 'hi' }] },
-    { role: 'assistant', content: [{ type: 'text', text: 'hello' }] },
-    { role: 'user', content: [{ type: 'text', text: 'bye' }] },
-  ]);
-
-  expect(compiled.system).toBeUndefined();
-  expect(compiled.user).toBe('<user>\nhi\n</user>\n\n<assistant>\nhello\n</assistant>\n\n<user>\nbye\n</user>');
-});
-
-it('compilePrompt should warn about files', () => {
-  const compiled = compilePrompt([
-    {
-      role: 'user',
-      content: [
-        { type: 'text', text: 'hi' },
-        { type: 'file', mediaType: 'image/png', data: { type: 'url', url: new URL('https://example.com/a.png') } },
-      ],
-    },
-  ]);
-
-  expect(compiled.user).toBe('hi');
-  expect(compiled.warnings).toEqual([expect.objectContaining({ type: 'unsupported', feature: 'file' })]);
-});
-
-it('collectWarnings should warn about unsupported settings and tools', () => {
-  const warnings = collectWarnings({
-    prompt: [],
-    temperature: 0.5,
-    tools: [{ type: 'function', name: 'read', inputSchema: { type: 'object' } }],
-  });
-
-  expect(warnings.map((warning) => 'feature' in warning && warning.feature)).toEqual(['temperature', 'tools']);
 });
 
 it('convertReasoning should map reasoning into effort', () => {
@@ -155,18 +78,6 @@ it('convertEvent should convert thinking and tools and skip StructuredOutput', (
   }, tools);
 
   expect(user).toEqual([expect.objectContaining({ type: 'tool-result', toolCallId: 't1', toolName: 'Read', result: 'file' })]);
-});
-
-it('collectWarnings should skip bridged tools', () => {
-  const warnings = collectWarnings({
-    prompt: [],
-    tools: [
-      { type: 'function', name: 'read', inputSchema: { type: 'object' } },
-      { type: 'function', name: 'write', inputSchema: { type: 'object' } },
-    ],
-  }, ['read']);
-
-  expect(warnings).toEqual([expect.objectContaining({ feature: 'tools', details: expect.stringContaining('[write]') })]);
 });
 
 it('convertEvent should remove bridge prefix from pipeline tools', () => {

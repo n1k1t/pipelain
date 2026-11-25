@@ -1,18 +1,37 @@
-import type { LanguageModel } from 'ai';
+import type {
+  TLlmCallOptions,
+  TLlmFinishPart,
+  TLlmGenerateResult,
+  TLlmLanguageModel,
+  TLlmStreamPart,
+  TLlmStreamResult,
+  TLlmWarning,
+} from '../../types';
 
-export type TLlmClaudeCodeModel = Extract<LanguageModel, { specificationVersion: 'v4' }>;
-export type TLlmClaudeCodeCallOptions = Parameters<TLlmClaudeCodeModel['doStream']>[0];
+export type TLlmClaudeCodeModel = TLlmLanguageModel;
+export type TLlmClaudeCodeCallOptions = TLlmCallOptions;
 
-export type TLlmClaudeCodeStreamResult = Awaited<ReturnType<TLlmClaudeCodeModel['doStream']>>;
-export type TLlmClaudeCodeGenerateResult = Awaited<ReturnType<TLlmClaudeCodeModel['doGenerate']>>;
+export type TLlmClaudeCodeStreamResult = TLlmStreamResult;
+export type TLlmClaudeCodeGenerateResult = TLlmGenerateResult;
 
-export type TLlmClaudeCodeStreamPart = TLlmClaudeCodeStreamResult['stream'] extends ReadableStream<infer T> ? T : never;
-export type TLlmClaudeCodeFinishPart = Extract<TLlmClaudeCodeStreamPart, { type: 'finish' }>;
-export type TLlmClaudeCodeWarning = Extract<TLlmClaudeCodeStreamPart, { type: 'stream-start' }>['warnings'][number];
-export type TLlmClaudeCodeFunctionTool = Extract<NonNullable<TLlmClaudeCodeCallOptions['tools']>[number], { type: 'function' }>;
+export type TLlmClaudeCodeStreamPart = TLlmStreamPart;
+export type TLlmClaudeCodeFinishPart = TLlmFinishPart;
+export type TLlmClaudeCodeWarning = TLlmWarning;
 
-export type TLlmClaudeCodePermissionMode = 'acceptEdits' | 'auto' | 'bypassPermissions' | 'manual' | 'dontAsk' | 'plan';
 export type TLlmClaudeCodeEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
+/** Built-in Claude Code tool (tool names of newer Claude Code versions are accepted as strings) */
+export type TLlmClaudeCodeTool =
+  | 'Bash'
+  | 'Edit'
+  | 'Glob'
+  | 'Grep'
+  | 'NotebookEdit'
+  | 'Read'
+  | 'TodoWrite'
+  | 'WebFetch'
+  | 'WebSearch'
+  | 'Write';
 
 /**
  * Kind of the connection key
@@ -62,32 +81,9 @@ export type TLlmClaudeCodeEvent =
   | { type: 'user'; message: { content: string | TLlmClaudeCodeBlock[] } }
   | ILlmClaudeCodeResultEvent;
 
-/** JSON-RPC message of MCP client (request or notification without `id`) */
-export interface ILlmClaudeCodeJsonRpcMessage {
-  jsonrpc: '2.0';
-  method: string;
-
-  id?: string | number | null;
-  params?: Record<string, unknown>;
-}
-
-/** JSON-RPC answer of the bridge without `jsonrpc` and `id` */
-export type TLlmClaudeCodeJsonRpcAnswer =
-  | { result: object }
-  | { error: { code: number; message: string } };
-
-/** MCP tool result of the bridge */
-export interface ILlmClaudeCodeBridgeToolResult {
-  content: { type: 'text'; text: string }[];
-  isError?: boolean;
-}
-
 export interface ILlmClaudeCodeOptions {
   /** Path to the Claude Code executable (default `claude`) */
   executable?: string;
-
-  /** Working directory of the Claude Code session (default `process.cwd()`) */
-  cwd?: string;
 
   /** Environment variables of the Claude Code process (default `process.env`) */
   env?: Record<string, string | undefined>;
@@ -98,20 +94,11 @@ export interface ILlmClaudeCodeOptions {
    */
   auth?: TLlmClaudeCodeAuth;
 
-  /** Built-in Claude Code tools like `Read`, `Bash` or `default` (default `[]`, all the tools are disabled) */
-  tools?: string[];
-
-  /** Tools which are allowed without a permission prompt */
-  allowedTools?: string[];
-
-  /** Tools which are removed from the model context */
-  disallowedTools?: string[];
-
-  /** Permission mode of the Claude Code session */
-  permissionMode?: TLlmClaudeCodePermissionMode;
-
-  /** MCP configs (paths to JSON files or JSON strings). Only these MCP servers are loaded */
-  mcp?: string[];
+  /**
+   * Built-in Claude Code tools (default `[]`, all the tools are disabled)
+   * The session runs in `dontAsk` permission mode, so only these tools and pipeline tools are allowed
+   */
+  tools?: (TLlmClaudeCodeTool | (string & {}))[];
 
   /** Replaces the default Claude Code system prompt or appends to it (default `replace`) */
   system?: 'replace' | 'append';

@@ -1,5 +1,7 @@
 import { LanguageModel, Tool } from 'ai';
 
+import type { Project } from '../../project';
+
 import { LlmToolCompiler } from '../tools/model';
 import { Constructable } from '../../../../types';
 import { ILlmSkill } from '../types';
@@ -21,6 +23,15 @@ export interface ILlmProviderFallback {
 
   /** Providers to go next */
   providers: LlmProvider[];
+}
+
+/** Context of the language model compilation for a call */
+export interface ILlmProviderCompilation {
+  /** Executable tools of the call (used by providers which execute tools by themselves) */
+  tools: Record<string, Tool>;
+
+  /** Project of the pipeline (local agents run in its directory) */
+  project: Project;
 }
 
 export abstract class LlmProvider<TOptions extends object = any> {
@@ -66,11 +77,8 @@ export abstract class LlmProvider<TOptions extends object = any> {
 
   public abstract clone(): this;
 
-  /**
-   * Compiles the language model for a call from actual provider fields
-   * Executable tools are used by providers which execute tools by themselves
-   */
-  public abstract compile(provided: { tools: Record<string, Tool> }): LanguageModel;
+  /** Compiles the language model for a call from actual provider fields */
+  public abstract compile(provided: ILlmProviderCompilation): LanguageModel;
 
   /** Casts options from specific provider */
   public cast<T extends object>(Provider: Constructable<LlmProvider<T>>): LlmProvider<T> {

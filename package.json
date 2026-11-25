@@ -13,6 +13,8 @@
     "launch:pipelain:report": "npx ts-node launchers/report.ts",
     "launch:pipelain:fallback": "npx ts-node launchers/fallback.ts",
     "launch:pipelain:claude-code": "npx ts-node launchers/claude-code.ts",
+    "launch:pipelain:codex": "npx ts-node launchers/codex.ts",
+    "launch:pipelain:antigravity": "npx ts-node launchers/antigravity.ts",
     "build": "rm -rf lib && npx tsc",
     "build:check": "npx tsc --noEmit",
     "prepare": "husky",

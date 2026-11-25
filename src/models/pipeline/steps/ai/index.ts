@@ -401,9 +401,12 @@ export class PipelineAiStep<
 
         temperature: provided.llm.temperature,
         reasoning: <Exclude<TLlmProviderReasoning, 'max'>>provided.llm.reasoning,
-
-        model: provided.llm.compile({ tools: provided.tools ?? {} }),
         tools: provided.tools,
+
+        model: provided.llm.compile({
+          tools: provided.tools ?? {},
+          project: provided.parameters.context.project,
+        }),
 
         experimental_telemetry: {
           isEnabled: true,

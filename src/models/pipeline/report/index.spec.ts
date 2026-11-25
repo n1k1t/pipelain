@@ -1,3 +1,6 @@
+import '../../../setup';
+
+import path from 'path';
 import hbs from 'handlebars';
 import fs from 'fs/promises';
 
@@ -129,4 +132,37 @@ it('should add a snapshot when step:ai:complete is emitted', () => {
     llm: { name: 'n', model: 'm', limit: 1, reasoning: true, temperature: 0.5 },
   });
   expect(report.snapshots).toHaveLength(1);
+});
+
+it('compile should render short blocks into HTML and cut long blocks with the rest stored as escaped JSON', async () => {
+  jest.restoreAllMocks();
+  (env as any).dirs = { assets: path.resolve('assets') };
+
+  const report = new PipelineReport({
+    id: 'id',
+    meta: { timestamp: Date.now(), spent: 0, usage: { llm: {} } },
+  } as any);
+
+  const user = `${'a'.repeat(PipelineReport.BLOCK_LIMIT)}</script>`;
+
+  report.snapshots = [{
+    type: 'step:done',
+    messages: { system: 'System <b>', user },
+    meta: { timestamp: 0, spent: 0 },
+    actions: [],
+    output: { value: 1 },
+    step: { title: 'Step' },
+    llm: { name: 'n', model: 'm' },
+  }] as any;
+
+  const html = (await report.compile())!;
+  const blocks = JSON.parse(html.match(/<script type="application\/json" id="report-blocks">(.*?)<\/script>/)![1]);
+
+  expect(html).toContain('<code>System &lt;b&gt;</code>');
+  expect(html).toContain('{\n  &quot;value&quot;: 1\n}');
+
+  expect(html).toContain(`<code>${'a'.repeat(PipelineReport.BLOCK_LIMIT)}<span class="block-rest" data-block="0">`);
+  expect(html).not.toContain('a</script>');
+
+  expect(blocks).toEqual(['</script>']);
 });

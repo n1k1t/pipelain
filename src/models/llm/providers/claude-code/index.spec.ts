@@ -4,8 +4,10 @@ import z from 'zod/v3';
 import { LlmClaudeCodeProvider } from './index';
 import { LlmClaudeCodeCli } from './cli';
 import { LlmRouter } from '../../router';
+import { Project } from '../../../project';
 
-const compile = (provider: LlmClaudeCodeProvider) => <LlmClaudeCodeCli>provider.compile({ tools: {} });
+const project = new Project({ cwd: '/project', sources: { skills: {}, ignore: [], files: [] } });
+const compile = (provider: LlmClaudeCodeProvider) => <LlmClaudeCodeCli>provider.compile({ tools: {}, project });
 
 it('LlmClaudeCodeProvider.build should create provider without connection', () => {
   const provider = LlmClaudeCodeProvider.build('haiku', { options: { tools: ['Read'] } });
@@ -17,13 +19,13 @@ it('LlmClaudeCodeProvider.build should create provider without connection', () =
 });
 
 it('clone should create a new instance with copied options', () => {
-  const provider = LlmClaudeCodeProvider.build('haiku', { reasoning: 'high', options: { cwd: '/tmp' } });
+  const provider = LlmClaudeCodeProvider.build('haiku', { reasoning: 'high', options: { tools: ['Read'] } });
   const cloned = provider.clone();
 
   expect(cloned).not.toBe(provider);
   expect(cloned.options).not.toBe(provider.options);
 
-  expect(cloned.options).toEqual({ cwd: '/tmp' });
+  expect(cloned.options).toEqual({ tools: ['Read'] });
   expect(cloned.reasoning).toBe('high');
 });
 
@@ -42,13 +44,12 @@ it('compile should pass provider connection', () => {
   expect(compile(provider).options.auth).toBe('api-key');
 });
 
-it('compile should build model with executable tools', () => {
+it('compile should build model with executable tools and project', () => {
   const tools = { read: tool({ inputSchema: z.object({}), execute: () => 'ok' }) };
-  const model = <LlmClaudeCodeCli>LlmClaudeCodeProvider.build('haiku', { options: { cwd: '/tmp' } }).compile({ tools });
+  const model = <LlmClaudeCodeCli>LlmClaudeCodeProvider.build('haiku', {}).compile({ tools, project });
 
   expect(model).toBeInstanceOf(LlmClaudeCodeCli);
-  expect(model.tools).toBe(tools);
-  expect(model.options).toEqual({ cwd: '/tmp' });
+  expect(model.compilation).toEqual({ tools, project });
 });
 
 it('LlmRouter should provide LlmClaudeCodeProvider for claude-code provider', () => {

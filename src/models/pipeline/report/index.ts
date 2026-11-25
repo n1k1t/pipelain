@@ -2,6 +2,7 @@ import dayjs from 'dayjs';
 import path from 'path';
 import hbs from 'handlebars';
 import fs from 'fs/promises';
+import _ from 'lodash';
 
 import type { IPipelineReportTemplateData, TPipelineReportSnapshot } from './types';
 import type { PipelineSession } from '../session';
@@ -21,6 +22,9 @@ export class PipelineReport {
 
   constructor(public session: PipelineSession) {}
 
+  /** Maximum length of a block content which is rendered into HTML (the rest is rendered on demand) */
+  static BLOCK_LIMIT: number = 20000;
+
   /** Compiles report HTML file content */
   public async compile(): Promise<string | null> {
     if (!this.snapshots.length) {
@@ -29,6 +33,34 @@ export class PipelineReport {
 
     const assets = path.join(env.dirs.assets, 'report');
     const template = await fs.readFile(path.join(assets, 'index.hbs'), 'utf8');
+
+    /** Rest contents of the long blocks which are rendered by the report script on demand */
+    const blocks: string[] = [];
+
+    const helpers = {
+      /**
+       * Renders the block content (objects are formatted as JSON)
+       * A long content is cut to keep the page light: the rest is stored into blocks and marked to be rendered by the report script
+       * The cut part stays in HTML to be visible without scripts (e.g. in Quick Look)
+       */
+      block: (content: unknown): hbs.SafeString => {
+        const text = _.isObject(content) ? JSON.stringify(content, null, 2) : String(content ?? '');
+
+        if (text.length <= PipelineReport.BLOCK_LIMIT) {
+          return new hbs.SafeString(hbs.escapeExpression(text));
+        }
+
+        const index = blocks.push(text.slice(PipelineReport.BLOCK_LIMIT)) - 1;
+        const size = Math.ceil((text.length - PipelineReport.BLOCK_LIMIT) / 1024);
+
+        return new hbs.SafeString(
+          `${hbs.escapeExpression(text.slice(0, PipelineReport.BLOCK_LIMIT))}<span class="block-rest" data-block="${index}">\n… (${size} KB more)</span>`
+        );
+      },
+
+      /** Serializes stored blocks for `<script type="application/json">` (must be called after all the blocks) */
+      blocks: (): hbs.SafeString => new hbs.SafeString(JSON.stringify(blocks).replace(/</g, '\\u003c')),
+    };
 
     return hbs.compile(template)(cast<IPipelineReportTemplateData>({
       snapshots: this.snapshots.map((snapshot) => {
@@ -71,7 +103,7 @@ export class PipelineReport {
           style: await fs.readFile(path.join(assets, 'main.css'), 'utf8'),
         },
       },
-    }));
+    }), { helpers });
   }
 
   /** Compiles and saves HTML report file */

@@ -1,12 +1,11 @@
-import { LanguageModel, Tool } from 'ai';
+import { LanguageModel } from 'ai';
 
 import type { ILlmClaudeCodeOptions } from './types';
+import type { SetPartialKeys } from '../../../../../types';
 
-import { SetPartialKeys } from '../../../../../types';
+import { ILlmProviderCompilation, LlmProvider } from '../model';
 import { LlmClaudeCodeCli } from './cli';
-import { LlmProvider } from '../model';
 
-export * from './bridge';
 export * from './errors';
 export * from './types';
 export * from './cli';
@@ -18,9 +17,9 @@ export * from './cli';
 export class LlmClaudeCodeProvider extends LlmProvider<ILlmClaudeCodeOptions> {
   public name: string = 'claude-code';
 
-  /** Builds the language model which bridges executable pipeline tools into Claude Code via MCP */
-  public compile(provided: { tools: Record<string, Tool> }): LanguageModel {
-    return LlmClaudeCodeCli.build(this.model, this.options, this.connection, provided.tools);
+  /** Builds the language model which runs in the project directory and bridges pipeline tools into Claude Code via MCP */
+  public compile(provided: ILlmProviderCompilation): LanguageModel {
+    return LlmClaudeCodeCli.build(this.model, this.options, this.connection, provided);
   }
 
   /** Checks the Claude Code CLI is installed and returns its version */

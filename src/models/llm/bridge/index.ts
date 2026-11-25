@@ -1,55 +1,43 @@
+import _ from 'lodash';
+
 import { createServer, IncomingMessage, Server, ServerResponse } from 'node:http';
+import { asSchema, Tool } from 'ai';
 import { randomBytes } from 'node:crypto';
 import { AddressInfo } from 'node:net';
 import { v4 } from 'uuid';
 
-import type { Tool } from 'ai';
 import type {
-  ILlmClaudeCodeBridgeToolResult,
-  ILlmClaudeCodeJsonRpcMessage,
-  TLlmClaudeCodeFunctionTool,
-  TLlmClaudeCodeJsonRpcAnswer,
+  ILlmBridgeJsonRpcMessage,
+  ILlmBridgeToolResult,
+  TLlmBridgeJsonRpcAnswer,
 } from './types';
 
-import { BRIDGE_NAME, consumeToolOutput, isJsonRpcMessage, reply } from './utils';
-import { parseJsonSafe } from '../../../../utils';
+import { consumeToolOutput, isJsonRpcMessage, LLM_BRIDGE_NAME, reply } from './utils';
+import { parseJsonSafe } from '../../../utils';
+
+export { LLM_BRIDGE_NAME } from './utils';
+export * from './types';
 
 /** MCP protocol version which is used when the client does not provide its own */
 const PROTOCOL_VERSION = '2025-06-18';
 
 /**
- * MCP server which exposes executable pipeline tools to Claude Code CLI (Streamable HTTP transport with JSON answers)
+ * MCP server which exposes executable pipeline tools to agent CLIs (Streamable HTTP transport with JSON answers)
  * Listens on `127.0.0.1` with a random port and requires a random bearer token
  */
-export class LlmClaudeCodeBridge {
+export class LlmBridge {
+  public readonly name: string = LLM_BRIDGE_NAME;
   public readonly token: string = randomBytes(32).toString('hex');
+
   public url?: string;
 
   private server: Server = createServer((request, response) => this.handle(request, response));
 
   constructor(
+    /** Executable tools which are exposed */
     public tools: Record<string, Tool>,
-    public definitions: TLlmClaudeCodeFunctionTool[],
     public signal?: AbortSignal
   ) {}
-
-  /** Names of the tools which are exposed */
-  public get names(): string[] {
-    return this.definitions.map((definition) => definition.name);
-  }
-
-  /** MCP config for `--mcp-config` */
-  public get config(): object {
-    return {
-      mcpServers: {
-        [BRIDGE_NAME]: {
-          type: 'http',
-          url: this.url,
-          headers: { Authorization: `Bearer ${this.token}` },
-        },
-      },
-    };
-  }
 
   public async open(): Promise<this> {
     await new Promise<void>((resolve, reject) => {
@@ -71,8 +59,8 @@ export class LlmClaudeCodeBridge {
   }
 
   /** Executes the tool and converts its output into MCP tool result (errors are returned with `isError`) */
-  public async call(name: string, input: unknown): Promise<ILlmClaudeCodeBridgeToolResult> {
-    const execute = this.names.includes(name) ? this.tools[name]?.execute : undefined;
+  public async call(name: string, input: unknown): Promise<ILlmBridgeToolResult> {
+    const execute = _.has(this.tools, name) ? this.tools[name].execute : undefined;
 
     if (!execute) {
       return { isError: true, content: [{ type: 'text', text: `Tool [${name}] is not found` }] };
@@ -80,7 +68,7 @@ export class LlmClaudeCodeBridge {
 
     try {
       const executed = execute(input, {
-        toolCallId: `${BRIDGE_NAME}:${v4()}`,
+        toolCallId: `${this.name}:${v4()}`,
         abortSignal: this.signal,
         messages: [],
         context: {},
@@ -107,7 +95,7 @@ export class LlmClaudeCodeBridge {
       chunks.push(<Buffer>chunk);
     }
 
-    const parsed = parseJsonSafe<ILlmClaudeCodeJsonRpcMessage>(Buffer.concat(chunks).toString());
+    const parsed = parseJsonSafe<ILlmBridgeJsonRpcMessage>(Buffer.concat(chunks).toString());
 
     if (parsed.status === 'ERROR' || !isJsonRpcMessage(parsed.result)) {
       return reply(response, 400, {
@@ -131,13 +119,13 @@ export class LlmClaudeCodeBridge {
     });
   }
 
-  private async dispatch(message: ILlmClaudeCodeJsonRpcMessage): Promise<TLlmClaudeCodeJsonRpcAnswer> {
+  private async dispatch(message: ILlmBridgeJsonRpcMessage): Promise<TLlmBridgeJsonRpcAnswer> {
     switch (message.method) {
       case 'initialize': return {
         result: {
           protocolVersion: message.params?.protocolVersion ?? PROTOCOL_VERSION,
           capabilities: { tools: {} },
-          serverInfo: { name: BRIDGE_NAME, version: '1.0.0' },
+          serverInfo: { name: this.name, version: '1.0.0' },
         },
       };
 
@@ -145,11 +133,13 @@ export class LlmClaudeCodeBridge {
 
       case 'tools/list': return {
         result: {
-          tools: this.definitions.map((definition) => ({
-            name: definition.name,
-            description: definition.description,
-            inputSchema: definition.inputSchema,
-          })),
+          tools: await Promise.all(
+            Object.entries(this.tools).map(async ([name, tool]) => ({
+              name,
+              description: tool.description,
+              inputSchema: await asSchema(tool.inputSchema).jsonSchema,
+            }))
+          ),
         },
       };
 
@@ -157,20 +147,21 @@ export class LlmClaudeCodeBridge {
         result: await this.call(String(message.params?.name), message.params?.arguments ?? {}),
       };
 
-      default: return { error: { code: -32601, message: `Method [${message.method}] is not found` } };
+      default: return {
+        error: {
+          code: -32601,
+          message: `Method [${message.method}] is not found`
+        },
+      };
     }
   }
 
-  /** Builds the bridge for executable function tools of the call */
-  static build(
-    tools: Record<string, Tool>,
-    definitions: TLlmClaudeCodeFunctionTool[] = [],
-    signal?: AbortSignal
-  ): LlmClaudeCodeBridge {
-    return new LlmClaudeCodeBridge(
-      tools,
-      definitions.filter((definition) => tools[definition.name]?.execute),
-      signal
-    );
+  /**
+   * Builds the bridge for tools with `execute` (other tools cannot be executed by the bridge)
+   * Returns `null` when there are no executable tools to expose
+   */
+  static build(tools: Record<string, Tool>, signal?: AbortSignal): LlmBridge | null {
+    const executable = _.pickBy(tools, (tool) => tool.execute);
+    return _.isEmpty(executable) ? null : new LlmBridge(executable, signal);
   }
 }

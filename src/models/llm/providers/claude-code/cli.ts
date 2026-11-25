@@ -1,5 +1,4 @@
-import type { ILlmProviderConnection } from '../model';
-import type { Tool } from 'ai';
+import type { ILlmProviderCompilation, ILlmProviderConnection } from '../model';
 import type {
   ILlmClaudeCodeOptions,
   ILlmClaudeCodeResultEvent,
@@ -11,22 +10,21 @@ import type {
   TLlmClaudeCodeStreamResult,
 } from './types';
 
-import { LlmClaudeCodeBridge } from './bridge';
+import { collectStream, collectWarnings, compilePrompt, compileSchema } from '../../utils';
 import { LlmClaudeCodeError } from './errors';
 import { parseJsonSafe } from '../../../../utils';
+import { LlmBridge } from '../../bridge';
 import { Bash } from '../../../bash';
 import {
-  BRIDGE_NAME,
   BRIDGE_PREFIX,
-  collectWarnings,
-  compilePrompt,
-  compileSchema,
+  compileMcpConfig,
   compileEnv,
   convertEvent,
   convertReasoning,
   convertResult,
-  convertUsage,
 } from './utils';
+
+const CLI = 'Claude Code CLI';
 
 /** Language model which runs prompts with the Claude Code CLI in print mode */
 export class LlmClaudeCodeCli implements TLlmClaudeCodeModel {
@@ -41,8 +39,8 @@ export class LlmClaudeCodeCli implements TLlmClaudeCodeModel {
     public options: ILlmClaudeCodeOptions = {},
     public connection?: ILlmProviderConnection,
 
-    /** Executable pipeline tools which are bridged into Claude Code via MCP */
-    public tools: Record<string, Tool> = {}
+    /** Executable pipeline tools which are bridged into Claude Code via MCP and the project to run the session in */
+    public compilation?: ILlmProviderCompilation
   ) {}
 
   /** Checks the Claude Code CLI is installed and returns its version */
@@ -51,64 +49,21 @@ export class LlmClaudeCodeCli implements TLlmClaudeCodeModel {
   }
 
   public async doGenerate(options: TLlmClaudeCodeCallOptions): Promise<TLlmClaudeCodeGenerateResult> {
-    const { stream } = await this.doStream(options);
-
-    const result: TLlmClaudeCodeGenerateResult = {
-      content: [],
-      warnings: [],
-
-      finishReason: { unified: 'other', raw: undefined },
-      usage: convertUsage(),
-    };
-
-    const reader = stream.getReader();
-
-    for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
-      const part = chunk.value;
-
-      switch (part.type) {
-        case 'stream-start': result.warnings.push(...part.warnings); continue;
-        case 'text-delta': result.content.push({ type: 'text', text: part.delta }); continue;
-        case 'reasoning-delta': result.content.push({ type: 'reasoning', text: part.delta }); continue;
-        case 'tool-call': result.content.push(part); continue;
-        case 'tool-result': result.content.push(part); continue;
-        case 'error': throw part.error;
-
-        case 'finish': {
-          Object.assign(result, {
-            finishReason: part.finishReason,
-            usage: part.usage,
-            providerMetadata: part.providerMetadata,
-          });
-
-          continue;
-        }
-      }
-    }
-
-    return result;
+    return collectStream((await this.doStream(options)).stream);
   }
 
   public async doStream(options: TLlmClaudeCodeCallOptions): Promise<TLlmClaudeCodeStreamResult> {
     await this.check();
 
-    const prompt = compilePrompt(options.prompt);
+    const prompt = compilePrompt(options.prompt, CLI);
     const schema = options.responseFormat?.type === 'json' && options.responseFormat.schema
       ? compileSchema(options.responseFormat.schema)
       : undefined;
 
-    const bridge = LlmClaudeCodeBridge.build(
-      this.tools,
-      options.tools?.flatMap((tool) => tool.type === 'function' ? [tool] : []),
-      options.abortSignal
-    );
-
-    if (bridge.names.length) {
-      await bridge.open();
-    }
+    const bridge = await LlmBridge.build(this.compilation?.tools ?? {}, options.abortSignal)?.open();
 
     const args = this.compileArgs({ options, bridge, schema: schema?.value, system: prompt.system });
-    const warnings = prompt.warnings.concat(collectWarnings(options, bridge.names));
+    const warnings = prompt.warnings.concat(collectWarnings(options, CLI, Object.keys(bridge?.tools ?? {})));
 
     const stream = new ReadableStream<TLlmClaudeCodeStreamPart>({
       start: async (controller) => {
@@ -135,7 +90,7 @@ export class LlmClaudeCodeCli implements TLlmClaudeCodeModel {
         controller.enqueue({ type: 'stream-start', warnings });
 
         const executed = await Bash
-          .build({ argv0: this.executable, cwd: this.options.cwd, env: compileEnv(this.options, this.connection) })
+          .build({ argv0: this.executable, cwd: this.compilation?.project.cwd, env: compileEnv(this.options, this.connection) })
           .exec(args, {
             stdin: prompt.user,
             signal: options.abortSignal,
@@ -147,7 +102,7 @@ export class LlmClaudeCodeCli implements TLlmClaudeCodeModel {
               lines.forEach(consume);
             },
           })
-          .finally(() => bridge.close());
+          .finally(() => bridge?.close());
 
         consume(context.buffer);
 
@@ -201,25 +156,28 @@ export class LlmClaudeCodeCli implements TLlmClaudeCodeModel {
     };
   }
 
-  /** Compiles CLI arguments of the print mode (bridged pipeline tools are allowed without a permission prompt) */
+  /**
+   * Compiles CLI arguments of the print mode
+   * The session runs in `dontAsk` mode: built-in tools from options and bridged pipeline tools are allowed, others are denied
+   */
   private compileArgs(provided: {
     options: TLlmClaudeCodeCallOptions;
-    bridge: LlmClaudeCodeBridge;
+    bridge?: LlmBridge;
 
     schema?: object;
     system?: string;
   }): string[] {
+    const { bridge } = provided;
     const effort = convertReasoning(provided.options.reasoning);
-    const bridged = provided.bridge.names.length > 0;
 
-    const mcp = [...(this.options.mcp ?? []), ...(bridged ? [JSON.stringify(provided.bridge.config)] : [])];
-    const allowed = [...(this.options.allowedTools ?? []), ...(bridged ? [`mcp__${BRIDGE_NAME}`] : [])];
+    const tools = this.options.tools ?? [];
+    const allowed = [...tools, ...(bridge ? [`mcp__${bridge.name}`] : [])];
 
     const system = [
       provided.system,
 
-      ...(bridged
-        ? [`Pipeline tools are provided by \`${BRIDGE_NAME}\` MCP server: a tool referenced as \`read\` is called \`${BRIDGE_PREFIX}read\``]
+      ...(bridge
+        ? [`Pipeline tools are provided by \`${bridge.name}\` MCP server: a tool referenced as \`read\` is called \`${BRIDGE_PREFIX}read\``]
         : []),
     ].filter(Boolean).join('\n\n');
 
@@ -230,8 +188,9 @@ export class LlmClaudeCodeCli implements TLlmClaudeCodeModel {
 
       '--no-session-persistence',
       '--strict-mcp-config',
+      '--permission-mode', 'dontAsk',
 
-      '--tools', (this.options.tools ?? []).join(','),
+      '--tools', tools.join(','),
 
       ...(this.modelId !== 'default' ? ['--model', this.modelId] : []),
       ...(effort ? ['--effort', effort] : []),
@@ -240,10 +199,7 @@ export class LlmClaudeCodeCli implements TLlmClaudeCodeModel {
       ...(provided.schema ? ['--json-schema', JSON.stringify(provided.schema)] : []),
 
       ...(allowed.length ? ['--allowed-tools', allowed.join(',')] : []),
-      ...(this.options.disallowedTools?.length ? ['--disallowed-tools', this.options.disallowedTools.join(',')] : []),
-
-      ...(this.options.permissionMode ? ['--permission-mode', this.options.permissionMode] : []),
-      ...(mcp.length ? ['--mcp-config', ...mcp] : []),
+      ...(bridge ? ['--mcp-config', JSON.stringify(compileMcpConfig(bridge))] : []),
       ...(this.options.budget !== undefined ? ['--max-budget-usd', String(this.options.budget)] : []),
 
       ...(this.options.args ?? []),
@@ -256,9 +212,9 @@ export class LlmClaudeCodeCli implements TLlmClaudeCodeModel {
     modelId: string,
     options?: ILlmClaudeCodeOptions,
     connection?: ILlmProviderConnection,
-    tools?: Record<string, Tool>
+    compilation?: ILlmProviderCompilation
   ): LlmClaudeCodeCli {
-    return new LlmClaudeCodeCli(modelId, options, connection, tools);
+    return new LlmClaudeCodeCli(modelId, options, connection, compilation);
   }
 
   /** Checks the Claude Code CLI is installed and returns its version (the successful result is cached) */
